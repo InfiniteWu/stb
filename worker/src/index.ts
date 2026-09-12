@@ -12,8 +12,14 @@ import { Hono } from 'hono';
 import type { AppBindings } from './types';
 import { ApiError } from './lib/json';
 import { nowStamp } from './lib/time';
+import { loadSession } from './middleware/auth';
+import { authRoutes } from './routes/auth';
+import { userRoutes } from './routes/users';
 
 const app = new Hono<AppBindings>();
+
+// 所有 /api/* 请求先解析会话，后续中间件按需拒绝
+app.use('/api/*', loadSession);
 
 // ── 健康检查（部署冒烟用，不需要认证）──────────────────────
 app.get('/api/health', (c) =>
@@ -24,6 +30,9 @@ app.get('/api/health', (c) =>
     time: nowStamp(),
   }),
 );
+
+app.route('/api/auth', authRoutes);
+app.route('/api/users', userRoutes);
 
 // ── 未匹配的路径 ──────────────────────────────────────────
 app.notFound((c) => {
