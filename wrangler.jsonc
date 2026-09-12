@@ -24,9 +24,9 @@
     {
       "binding": "DB",
       "database_name": "shuatibao",
-      // ⚠️ 占位值。执行 `npm run db:create` 后把返回的 database_id 填到这里。
-      // 本地开发（wrangler dev / --local）不校验此值，可先用占位值跑通。
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // 2026-09-12 创建。刻意指定 --location apac：
+      // 默认会落在 WNAM（美西），对国内用户每次查询都要跨太平洋往返。
+      "database_id": "4cad2ce1-53fc-4d43-b017-1122e50fd07c",
       "migrations_dir": "worker/migrations"
     }
   ],
@@ -35,9 +35,11 @@
   // 不使用 *.workers.dev（本机 DNS 被污染，且国内不可达）。
   // "routes": [{ "pattern": "刷题宝.example.com", "custom_domain": true }],
 
-  // 本地开发的非敏感变量。密钥请用 `wrangler secret put`，不要写在这里。
+  // 这里放的是**默认（生产）**取值。
+  // 本地开发由 .dev.vars 覆盖为 development（见 .dev.vars.example）。
+  // 密钥一律走 `wrangler secret put`，不要写进本文件。
   "vars": {
-    "ENVIRONMENT": "development"
+    "ENVIRONMENT": "production"
   },
 
   "observability": {

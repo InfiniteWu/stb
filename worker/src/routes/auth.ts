@@ -18,6 +18,7 @@ import {
   deriveDecoySalt,
   isRateLimited,
   recordLoginAttempt,
+  requireKdfSecret,
   verifyCredential,
 } from '../lib/password';
 import {
@@ -39,11 +40,6 @@ export const authRoutes = new Hono<AppBindings>();
 /** 用户名规范化：去空白；口令相关字段一律不做 trim（口令可含空格） */
 function normalizeUsername(raw: unknown): string {
   return typeof raw === 'string' ? raw.trim() : '';
-}
-
-/** 开发环境兜底密钥；生产必须用 `wrangler secret put SERVER_KDF_SECRET` 设置 */
-function kdfSecret(env: AppBindings['Bindings']): string {
-  return env.SERVER_KDF_SECRET ?? 'dev-only-insecure-kdf-secret';
 }
 
 // ── 登录第一步：取挑战 ───────────────────────────────────────
@@ -85,7 +81,7 @@ authRoutes.post('/challenge', csrfGuard, async (c) => {
   }
 
   return c.json({
-    salt: await deriveDecoySalt(kdfSecret(c.env), username),
+    salt: await deriveDecoySalt(requireKdfSecret(c.env), username),
     iterations: DEFAULT_KDF_ITERATIONS,
     algo: 'PBKDF2-SHA256',
   });

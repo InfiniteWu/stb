@@ -154,12 +154,21 @@ const crossOrigin = await fetch(BASE + '/api/auth/logout', {
 });
 check('跨站 Origin 被拒绝', crossOrigin.status === 403, `实际 ${crossOrigin.status}`);
 
+// 跨站表单必须「带请求体」才会被 Content-Type 检查拦下 ——
+// 无体的请求本就不携带参数，强制要求 application/json 只会误伤正常的
+// DELETE / 无体 PUT。这里用真实表单体来验证。
 const formPost = await fetch(BASE + '/api/auth/logout', {
   method: 'POST',
   headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: BASE, Cookie: `__Host-sid=${sid}` },
-  body: '',
+  body: 'a=1',
 });
-check('非 JSON Content-Type 被拒绝', formPost.status === 403, `实际 ${formPost.status}`);
+check('带请求体的非 JSON Content-Type 被拒绝', formPost.status === 403, `实际 ${formPost.status}`);
+
+const emptyBody = await fetch(BASE + '/api/auth/logout', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: BASE, Cookie: `__Host-sid=${sid}` },
+});
+check('无请求体的写操作不受 Content-Type 限制', emptyBody.status === 200, `实际 ${emptyBody.status}`);
 
 // 9) 登出
 console.log('\n登出');

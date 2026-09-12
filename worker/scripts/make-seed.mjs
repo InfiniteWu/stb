@@ -27,8 +27,10 @@ const REPO = resolve(HERE, '../..');
 const SRC_DB = resolve(REPO, 'legacy/data/shuatibao.db');
 const OUT_SQL = resolve(REPO, 'worker/migrations/0002_seed.sql');
 
-// D1 单条语句上限 100 KB，留出安全余量
-const MAX_STATEMENT_BYTES = 80 * 1024;
+/**
+ * 单条 INSERT 的体积上限。实测 D1 远端接口可接受 64 KB 的语句，这里取 48 KB 留余量。
+ */
+const MAX_STATEMENT_BYTES = 48 * 1024;
 
 if (!existsSync(SRC_DB)) {
   console.error(`✘ 找不到源数据库: ${SRC_DB}`);
@@ -161,7 +163,10 @@ lines.push("-- 这些账号 password_hash 为空、password_algo='legacy-bcrypt'
 lines.push('-- 迁移后必须由管理员重置口令。');
 lines.push('-- ═══════════════════════════════════════════════════════════════');
 lines.push('');
-lines.push('BEGIN TRANSACTION;');
+// 不写 BEGIN TRANSACTION / COMMIT：
+// D1 的 query 接口明确拒绝显式事务语句（要求用 JavaScript 侧的事务 API），
+// 而 wrangler 的迁移执行器本身就把每个迁移文件包在事务里，重复且会直接报错。
+lines.push('-- 事务由 wrangler 的迁移执行器提供，此处不写 BEGIN/COMMIT。');
 lines.push('');
 
 for (const t of TABLES) {
@@ -215,8 +220,6 @@ for (const t of TABLES) {
       `WHERE name = '${t.name}';`,
   );
 }
-lines.push('');
-lines.push('COMMIT;');
 lines.push('');
 
 writeFileSync(OUT_SQL, lines.join('\n'), 'utf8');

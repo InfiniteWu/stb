@@ -20,7 +20,7 @@ export default defineConfig(async () => {
                     bindings: {
                         TEST_MIGRATIONS: schemaMigrations,
                         // 测试用的固定 KDF 密钥，避免依赖 secret 配置
-                        SERVER_KDF_SECRET: 'test-kdf-secret',
+                        SERVER_KDF_SECRET: 'test-kdf-secret-with-enough-length',
                         ENVIRONMENT: 'test',
                     },
                 },

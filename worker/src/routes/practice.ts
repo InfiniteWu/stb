@@ -24,6 +24,7 @@ import { applyPermutation, shuffleIndices, signPermutation, unmapSelection, veri
 import { QUESTION_TYPES } from '../lib/validate';
 import { nowStamp } from '../lib/time';
 import { parseIntId } from '../lib/ids';
+import { requireKdfSecret } from '../lib/password';
 import { currentAuth, csrfGuard, requireLogin } from '../middleware/auth';
 
 export const practiceRoutes = new Hono<AppBindings>();
@@ -41,9 +42,12 @@ const MAX_PICK_TOTAL = 100;
  * 若线上出现 1102 或查询额度相关错误，优先下调此值，而不是改成逐条写入。
  */
 const MAX_SUBMIT_ANSWERS = 100;
-/** 置换签名密钥（与 KDF 密钥复用同一 secret，用途已由消息前缀区分） */
+/**
+ * 置换签名密钥。与 KDF 密钥复用同一个 secret，用途已由消息前缀区分；
+ * 缺失时同样直接报错，不做静默降级（见 requireKdfSecret）。
+ */
 function shuffleSecret(env: AppBindings['Bindings']): string {
-  return (env.SERVER_KDF_SECRET ?? 'dev-only-insecure-kdf-secret') + ':shuffle';
+  return requireKdfSecret(env) + ':shuffle';
 }
 
 /** 抽题时下发的题目形状：不含答案与解析 */

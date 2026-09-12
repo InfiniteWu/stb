@@ -161,6 +161,29 @@ export async function verifyCredential(
   return timingSafeEqual(candidate, storedHash);
 }
 
+// ── 服务端密钥 ───────────────────────────────────────────────
+
+/**
+ * 取服务端 KDF 密钥，缺失时**直接报错**而不是回落到硬编码默认值。
+ *
+ * 原先的写法是 `env.SERVER_KDF_SECRET ?? 'dev-only-insecure-...'`：
+ * 一旦线上忘记配置 secret，系统会静默地用一个公开的常量派生假盐，
+ * 攻击者据此可以预测假盐、进而判断用户名是否存在 —— 属于典型的
+ * 「默认值不安全」陷阱。宁可让请求失败，也不要静默降级。
+ *
+ * 本地开发通过 .dev.vars 提供；测试通过 vitest 的 miniflare bindings 提供。
+ */
+export function requireKdfSecret(env: { SERVER_KDF_SECRET?: string }): string {
+  const secret = env.SERVER_KDF_SECRET;
+  if (!secret || secret.length < 16) {
+    throw new Error(
+      'SERVER_KDF_SECRET 未配置或过短。生产环境执行 `wrangler secret put SERVER_KDF_SECRET`；' +
+        '本地开发请在 .dev.vars 中设置。',
+    );
+  }
+  return secret;
+}
+
 // ── 客户端提交的 KDF 载荷 ────────────────────────────────────
 
 export interface KdfPayload {
