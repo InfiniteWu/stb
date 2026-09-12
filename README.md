@@ -165,6 +165,20 @@ npm install --registry=https://registry.npmjs.org
 
 **`compatibility_date` 被测试工具链钉在 `2026-08-15`。** `@cloudflare/vitest-pool-workers` 依赖的 miniflare 捆绑 workerd `1.20260815`，更高日期无法启动。这里刻意让测试与线上使用同一日期，而不是让测试跑在另一套运行时语义上。待该依赖升级 miniflare 后可一并上调。
 
+**改 `wrangler.jsonc` 的 `database_id` 会让本地开发库「凭空清空」。** miniflare 的本地 D1 文件名是 `database_id` 的哈希（`.wrangler/state/v3/d1/miniflare-D1DatabaseObject/<hash>.sqlite`），id 一变就换文件。典型场景：先在本地开发了一阵，之后才 `d1 create` 并把真实 id 填进配置 —— 这时 `wrangler dev` 会指向一个全新的空库，所有请求报 `no such table`，而旧数据其实还躺在那个孤立文件里。
+
+```bash
+npm run db:migrate:local                        # 向新文件重建表与数据
+npm run pw:set -- admin '口令' > /tmp/pw.sql
+npx wrangler d1 execute DB --local --file=/tmp/pw.sql
+```
+
+**冒烟测试会触发登录限流。** `tools/smoke-auth.mjs` 会故意连续失败以验证 429 分支，跑完后再登录同一账号会被限流 15 分钟。清一下即可：
+
+```bash
+npx wrangler d1 execute DB --local --command "DELETE FROM login_attempts"
+```
+
 **npm 11 默认拦截 postinstall 脚本。** workerd 与 esbuild 的二进制由平台包直接提供，验证脚本被拦截不影响使用；若遇到问题可执行 `npm approve-scripts --allow-scripts-pending`。
 
 ---
