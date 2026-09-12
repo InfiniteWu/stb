@@ -76,20 +76,7 @@ textarea {
     user-select: text;
 }
 
-/* 图标占位：icons.js 注入的是只有 viewBox、没有 width/height 的 <svg>，
-   不给尺寸会退化成默认的 300×150 替换元素。这里给 1em 兜底，
-   各组件用更靠后的规则（.m-tab svg、.m-stat-icon svg 等）覆盖成具体尺寸。 */
-[data-icon] {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-[data-icon] > svg {
-    width: 1em;
-    height: 1em;
-}
+/* 图标占位的基础规则已上移到 tokens.css，两端共用一份。 */
 
 /* ═══════════════ 三、应用外壳 ═══════════════ */
 #app {

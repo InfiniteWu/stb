@@ -17,7 +17,9 @@
     "db:seed:generate": "node worker/scripts/make-seed.mjs",
     "pw:set": "node worker/scripts/set-password.mjs",
     "smoke:auth": "node tools/smoke-auth.mjs",
-    "icons": "node tools/build-icons.mjs"
+    "icons": "node tools/build-icons.mjs",
+    "check:styles": "node tools/check-styles.mjs",
+    "smoke:api": "node tools/smoke-api.mjs"
   },
   "dependencies": {
     "hono": "4.13.7"
