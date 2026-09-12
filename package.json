@@ -1,0 +1,33 @@
+{
+  "name": "shuatibao",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "二哥刷题宝 —— Hono on Cloudflare Workers + D1",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "cf:whoami": "wrangler whoami",
+    "db:create": "wrangler d1 create shuatibao",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "seed:generate": "node worker/scripts/make-seed.mjs",
+    "seed:local": "wrangler d1 execute DB --local --file=worker/migrations/0002_seed.sql",
+    "seed:remote": "wrangler d1 execute DB --remote --file=worker/migrations/0002_seed.sql",
+    "icons": "node tools/build-icons.mjs"
+  },
+  "dependencies": {
+    "hono": "4.13.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.22.0",
+    "@cloudflare/workers-types": "5.20260911.1",
+    "lucide-static": "1.45.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11",
+    "wrangler": "4.131.1"
+  }
+}
