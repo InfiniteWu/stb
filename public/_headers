@@ -1,0 +1,29 @@
+# ═══════════════════════════════════════════════════════════════
+# 静态资源响应头（Workers Static Assets 自动识别本文件）
+#
+# CSP 说明：这里始终**不含** 'unsafe-inline' —— 前提是已消除全部内联
+# 脚本与内联事件处理器（原 index.html 的内联跳转脚本已抽到
+# js/mobile-redirect.js，最后一处 onclick 也已改为 addEventListener）。
+# 如果将来重新引入内联脚本，CSP 会直接拦截，请改用外部文件。
+# ═══════════════════════════════════════════════════════════════
+
+/*
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: DENY
+    Referrer-Policy: same-origin
+    Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=()
+    Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+
+# HTML 不缓存，避免前端更新后用户拿到旧壳
+/*.html
+    Cache-Control: no-cache, must-revalidate
+
+/
+    Cache-Control: no-cache, must-revalidate
+
+# 带内容指纹之外的静态资源交给默认策略（Workers 会附带 ETag）
+/css/*
+    Cache-Control: public, max-age=3600
+
+/js/*
+    Cache-Control: public, max-age=3600

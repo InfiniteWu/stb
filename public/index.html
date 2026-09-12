@@ -5,21 +5,147 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>二哥刷题宝</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div id="app">
-        <!-- 登录页 -->
-        <div id="login-page" class="page">
+
+        <!-- ══════════════════════════════════════════════════════
+             登录页：整屏 12 栅格 —— 品牌展示 8 列 + 登录表单 4 列
+             ══════════════════════════════════════════════════════ -->
+        <div id="login-page" class="page grid-12">
             <div class="login-visual">
-                <canvas id="particles-canvas"></canvas>
-                <div class="login-visual-content">
-                    <h1>二哥刷题宝</h1>
-                    <p>智能刷题，高效学习。<br>让每一次练习都有价值。</p>
+                <div class="login-visual-bg" aria-hidden="true"></div>
+                <div class="login-visual-inner">
+                    <div class="login-cards">
+                        <svg class="login-illustration" viewBox="0 0 720 560"
+                             role="img" aria-label="题目卡片与答题结果示意图">
+                            <defs>
+                                <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
+                                    <feDropShadow dx="0" dy="24" stdDeviation="24"
+                                                  flood-color="#042f2e" flood-opacity="0.35"/>
+                                </filter>
+                            </defs>
+
+                            <!-- 后层卡片 -->
+                            <g transform="rotate(-7 360 300)" opacity="0.55">
+                                <rect x="210" y="150" width="300" height="200" rx="20"
+                                      fill="#ffffff" fill-opacity="0.08"
+                                      stroke="#ffffff" stroke-opacity="0.20" stroke-width="2"/>
+                            </g>
+
+                            <!-- 中层卡片 -->
+                            <g transform="rotate(4 360 300)" opacity="0.78">
+                                <rect x="190" y="165" width="340" height="220" rx="22"
+                                      fill="#ffffff" fill-opacity="0.12"
+                                      stroke="#ffffff" stroke-opacity="0.26" stroke-width="2"/>
+                            </g>
+
+                            <!-- 前层卡片：一道真实题目，第 3 行演示选中态 -->
+                            <g filter="url(#cardShadow)">
+                                <rect x="160" y="180" width="400" height="300" rx="24" fill="#ffffff"/>
+
+                                <!-- 题型徽章 -->
+                                <rect x="188" y="208" width="66" height="24" rx="12" fill="var(--brand-50)"/>
+                                <text x="221" y="225" text-anchor="middle" font-size="12"
+                                      font-family="system-ui, sans-serif" fill="var(--brand-700)">单选题</text>
+
+                                <!-- 题干 -->
+                                <rect x="188" y="250" width="344" height="10" rx="5" fill="var(--ink-300)"/>
+                                <rect x="188" y="270" width="256" height="10" rx="5" fill="var(--ink-300)"/>
+
+                                <!-- 选项 1（未选中） -->
+                                <rect x="188" y="308" width="344" height="36" rx="12"
+                                      fill="none" stroke="var(--ink-300)" stroke-width="2"/>
+                                <circle cx="212" cy="326" r="11" fill="var(--ink-100)"/>
+                                <text x="212" y="330" text-anchor="middle" font-size="11"
+                                      font-family="system-ui, sans-serif" fill="var(--ink-700)">A</text>
+                                <rect x="236" y="322" width="200" height="8" rx="4" fill="var(--ink-300)"/>
+
+                                <!-- 选项 2（未选中） -->
+                                <rect x="188" y="352" width="344" height="36" rx="12"
+                                      fill="none" stroke="var(--ink-300)" stroke-width="2"/>
+                                <circle cx="212" cy="370" r="11" fill="var(--ink-100)"/>
+                                <text x="212" y="374" text-anchor="middle" font-size="11"
+                                      font-family="system-ui, sans-serif" fill="var(--ink-700)">B</text>
+                                <rect x="236" y="366" width="160" height="8" rx="4" fill="var(--ink-300)"/>
+
+                                <!-- 选项 3（选中态：与设计系统的选中规范严格一致） -->
+                                <rect x="188" y="396" width="344" height="36" rx="12"
+                                      fill="var(--brand-50)" stroke="var(--brand-600)" stroke-width="2"/>
+                                <circle cx="212" cy="414" r="11" fill="var(--brand-600)"/>
+                                <text x="212" y="418" text-anchor="middle" font-size="11"
+                                      font-family="system-ui, sans-serif" fill="#ffffff">C</text>
+                                <rect x="236" y="410" width="220" height="8" rx="4" fill="var(--brand-200)"/>
+
+                                <!-- 选项 4（未选中） -->
+                                <rect x="188" y="440" width="344" height="36" rx="12"
+                                      fill="none" stroke="var(--ink-300)" stroke-width="2"/>
+                                <circle cx="212" cy="458" r="11" fill="var(--ink-100)"/>
+                                <text x="212" y="462" text-anchor="middle" font-size="11"
+                                      font-family="system-ui, sans-serif" fill="var(--ink-700)">D</text>
+                                <rect x="236" y="454" width="140" height="8" rx="4" fill="var(--ink-300)"/>
+                            </g>
+
+                            <!-- 成功徽章 -->
+                            <g transform="translate(566 404)">
+                                <circle r="48" fill="none" stroke="var(--success)"
+                                        stroke-opacity="0.25" stroke-width="2"/>
+                                <circle r="40" fill="var(--success)"/>
+                                <path d="M-16 0 L-5 11 L17 -11" fill="none" stroke="#ffffff"
+                                      stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+                            </g>
+
+                            <!-- 错题标签 -->
+                            <g transform="translate(84 452)">
+                                <rect width="128" height="34" rx="17"
+                                      fill="var(--warning)" fill-opacity="0.92"/>
+                                <text x="64" y="23" text-anchor="middle" font-size="14"
+                                      font-family="system-ui, sans-serif" fill="#ffffff">错题本 ×1</text>
+                            </g>
+
+                            <!-- 进度环 -->
+                            <g transform="translate(604 128)">
+                                <circle r="34" fill="none" stroke="#ffffff"
+                                        stroke-opacity="0.18" stroke-width="8"/>
+                                <circle r="34" fill="none" stroke="var(--brand-200)" stroke-width="8"
+                                        stroke-linecap="round" transform="rotate(-90)"
+                                        stroke-dasharray="145 214"/>
+                                <text y="6" text-anchor="middle" font-size="17"
+                                      font-family="system-ui, sans-serif" fill="#ffffff">68%</text>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <div class="login-brand">
+                        <h1 class="login-brand-name">二哥刷题宝</h1>
+                        <p class="login-brand-tagline">智能刷题 · 高效学习</p>
+                        <div class="login-brand-rule"></div>
+                        <ul class="login-features">
+                            <li class="login-feature">
+                                <span class="login-feature-icon" data-icon="upload"></span>
+                                <span>题库导入：支持 JSON 批量导入与自动统计</span>
+                            </li>
+                            <li class="login-feature">
+                                <span class="login-feature-icon" data-icon="list-checks"></span>
+                                <span>错题本：答错自动收录，连续答对自动移出</span>
+                            </li>
+                            <li class="login-feature">
+                                <span class="login-feature-icon" data-icon="bar-chart"></span>
+                                <span>练习记录：逐题回顾与正确率趋势</span>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
+
             <div class="login-form-side">
                 <div class="login-form-container">
+                    <div class="login-form-brand">
+                        <span class="login-form-brand-icon" data-icon="brand"></span>
+                        <span class="login-form-brand-name">二哥刷题宝</span>
+                    </div>
                     <div class="login-form-header">
                         <h2>欢迎回来</h2>
                         <p>请登录您的账户继续</p>
@@ -27,60 +153,62 @@
                     <form id="login-form" class="login-form">
                         <div class="form-group">
                             <label for="username">用户名</label>
-                            <input type="text" id="username" name="username" class="form-input" required placeholder="请输入用户名">
+                            <input type="text" id="username" name="username" class="form-input"
+                                   required placeholder="请输入用户名" autocomplete="username">
                         </div>
                         <div class="form-group">
                             <label for="password">密码</label>
-                            <input type="password" id="password" name="password" class="form-input" required placeholder="请输入密码">
+                            <input type="password" id="password" name="password" class="form-input"
+                                   required placeholder="请输入密码" autocomplete="current-password">
                         </div>
                         <button type="submit" class="btn btn-primary btn-block btn-lg">登录</button>
                     </form>
+                    <div class="login-form-footer">© 二哥刷题宝</div>
                 </div>
             </div>
         </div>
 
-        <!-- 主应用 -->
+        <!-- ══════════════════════════════════════════════════════
+             主应用：整屏 12 栅格 —— 侧边栏 2 列 + 主内容 10 列
+             ══════════════════════════════════════════════════════ -->
         <div id="main-app" class="hidden">
-            <!-- 侧边栏 -->
             <aside id="sidebar">
                 <div class="sidebar-brand">
-                    <div class="sidebar-brand-icon">
-                        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 10l3 3 3-3"/></svg>
-                    </div>
+                    <div class="sidebar-brand-icon" data-icon="brand"></div>
                     <h2>二哥刷题宝</h2>
                 </div>
                 <nav class="sidebar-nav">
                     <div class="nav-section">
                         <div class="nav-section-title">学习</div>
                         <a href="#/" class="nav-item active" data-page="dashboard">
-                            <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+                            <span class="icon" data-icon="dashboard"></span>
                             <span>仪表盘</span>
                         </a>
                         <a href="#/practice/pick" class="nav-item" data-page="practice">
-                            <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span>
+                            <span class="icon" data-icon="edit"></span>
                             <span>开始练习</span>
                         </a>
                         <a href="#/wrongbook" class="nav-item" data-page="wrongbook">
-                            <span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
+                            <span class="icon" data-icon="circle-x"></span>
                             <span>错题本</span>
                         </a>
                         <a href="#/sessions" class="nav-item" data-page="sessions">
-                            <span class="icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+                            <span class="icon" data-icon="file-text"></span>
                             <span>练习记录</span>
                         </a>
                     </div>
                     <div class="nav-section">
                         <div class="nav-section-title">管理</div>
                         <a href="#/banks" class="nav-item admin-only" data-page="banks">
-                            <span class="icon"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+                            <span class="icon" data-icon="book-stack"></span>
                             <span>题库管理</span>
                         </a>
                         <a href="#/import" class="nav-item admin-only" data-page="import">
-                            <span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+                            <span class="icon" data-icon="upload"></span>
                             <span>导入题库</span>
                         </a>
                         <a href="#/users" class="nav-item admin-only" data-page="users">
-                            <span class="icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                            <span class="icon" data-icon="users"></span>
                             <span>用户管理</span>
                         </a>
                     </div>
@@ -93,52 +221,30 @@
                             <span class="role-badge user" id="user-role">普通用户</span>
                         </div>
                     </div>
-                    <a href="#/profile" class="nav-item" data-page="profile" style="margin-bottom:4px">
-                        <span class="icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+                    <a href="#/profile" class="nav-item" data-page="profile">
+                        <span class="icon" data-icon="user"></span>
                         <span>个人设置</span>
                     </a>
-                    <button id="logout-btn" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;color:var(--gray-400)">
-                        <span class="icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+                    <button id="logout-btn" class="btn btn-ghost btn-sm btn-block">
+                        <span class="icon" data-icon="log-out"></span>
                         退出登录
                     </button>
                 </div>
             </aside>
 
-            <!-- 主内容区 -->
             <main id="main-content">
-                <div id="page-container"></div>
+                <div class="grid-12">
+                    <div id="page-container"></div>
+                </div>
             </main>
         </div>
     </div>
 
-    <!-- SVG 图标定义 (隐藏) -->
-    <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
-        <symbol id="icon-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
-        <symbol id="icon-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
-        <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></symbol>
-        <symbol id="icon-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
-        <symbol id="icon-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
-        <symbol id="icon-arrow-right" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
-        <symbol id="icon-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
-        <symbol id="icon-alert-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
-        <symbol id="icon-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
-        <symbol id="icon-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></symbol>
-        <symbol id="icon-key" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></symbol>
-    </svg>
-
-    <script>
-    (function(){
-        var ua = navigator.userAgent;
-        var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
-        var isSmallScreen = window.innerWidth < 768;
-        var isAlreadyMobile = /^\/mobile(\/|$)/.test(window.location.pathname);
-        if ((isMobile || isSmallScreen) && !isAlreadyMobile) {
-            window.location.replace("/mobile/" + window.location.hash);
-        }
-    })();
-    </script>
+    <script src="js/mobile-redirect.js"></script>
+    <script src="js/escape.js"></script>
+    <script src="js/kdf.js"></script>
+    <script src="js/icons.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/particles.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

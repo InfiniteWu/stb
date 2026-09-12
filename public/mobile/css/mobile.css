@@ -1,42 +1,56 @@
+/* ═══════════════════════════════════════════════════════════════
+ * 二哥刷题宝 —— 移动端样式（mobile.css）
+ *
+ * 依赖：public/css/tokens.css 必须先于本文件加载。
+ * 颜色、间距、圆角、阴影、字体全部取自 tokens.css 的令牌，
+ * 本文件不出现任何裸十六进制色值。
+ *
+ * 色相约束：全站只有 3 个色相 —— --brand-*（青绿）、--success（绿）、
+ * --warning（红）。旧版用蓝 / 琥珀 / 靛蓝区分的题型徽标没有语义，
+ * 已统一为中性样式，仅靠文字标签区分。
+ *
+ * 布局骨架：固定头部 + 可滚动 .m-page（内部 12 栅格）+ 固定底部标签栏。
+ * 安全区：--safe-top / --safe-bottom 承接 iPhone 刘海与 Home 指示条。
+ * ═══════════════════════════════════════════════════════════════ */
+
+/* ═══════════════ 一、移动端专属令牌 ═══════════════
+ * 只保留 tokens.css 里没有、且确实是移动端独有的令牌。
+ * 其余颜色 / 间距 / 圆角 / 阴影一律引用 tokens.css，不再重复定义，
+ * 避免同一语义色在两份样式表里取值不同（历史 bug）。
+ * ───────────────────────────────────────────────── */
 :root {
-    --primary: #0d9488;
-    --primary-light: #ccfbf1;
-    --primary-dark: #0f766e;
-    --success: #16a34a;
-    --success-light: #dcfce7;
-    --danger: #dc2626;
-    --danger-light: #fef2f2;
-    --warning: #f59e0b;
-    --info: #0284c7;
-    --info-light: #e0f2fe;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-400: #9ca3af;
-    --gray-500: #6b7280;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-800: #1f2937;
-    --gray-900: #111827;
-    --surface: #ffffff;
-    --bg: #f5f5f5;
-    --radius: 10px;
-    --radius-lg: 16px;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+    /* 安全区：刘海屏 / 全面屏 Home 指示条 */
     --safe-top: env(safe-area-inset-top);
     --safe-bottom: env(safe-area-inset-bottom);
+
+    /* 移动端骨架固定高度 */
     --header-h: 52px;
     --tabbar-h: 56px;
+
+    /* 移动端 12 栅格间距：比桌面 --grid-gutter(24px) 更紧 */
+    --m-gutter: var(--space-4);
+
+    /* 抽屉遮罩：tokens.css 没有遮罩令牌，这里由 --ink-900 派生，
+       避免为了一个半透明遮罩写死 rgba 色值。 */
+    --m-scrim: color-mix(in srgb, var(--ink-900) 40%, transparent);
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+/* ═══════════════ 二、基础重置 ═══════════════ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     background: var(--bg);
-    color: var(--gray-800);
+    color: var(--ink-900);
     line-height: 1.5;
     overflow: hidden;
     height: 100vh;
@@ -47,6 +61,37 @@ body {
     user-select: none;
 }
 
+/* 表单控件默认不继承字体，这里显式继承 --font-sans；
+   同时放开输入框的文本选择（body 上的 user-select:none 会误伤输入）。 */
+button,
+input,
+textarea,
+select {
+    font-family: inherit;
+}
+
+input,
+textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* 图标占位：icons.js 注入的是只有 viewBox、没有 width/height 的 <svg>，
+   不给尺寸会退化成默认的 300×150 替换元素。这里给 1em 兜底，
+   各组件用更靠后的规则（.m-tab svg、.m-stat-icon svg 等）覆盖成具体尺寸。 */
+[data-icon] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+[data-icon] > svg {
+    width: 1em;
+    height: 1em;
+}
+
+/* ═══════════════ 三、应用外壳 ═══════════════ */
 #app {
     max-width: 750px;
     margin: 0 auto;
@@ -59,21 +104,27 @@ body {
     overflow: hidden;
 }
 
-/* ============ Header ============ */
+/* ── 固定头部 ──
+ * 高度 = 内容高 + 安全区，避免刘海屏下 52px 被 env() 挤扁。 */
 .m-header {
     position: sticky;
     top: 0;
     z-index: 100;
     display: flex;
     align-items: center;
-    height: var(--header-h);
-    padding: 0 16px;
+    height: calc(var(--header-h) + var(--safe-top));
+    padding: 0 var(--space-4);
     padding-top: var(--safe-top);
-    background: var(--primary);
-    color: white;
+    background: var(--brand-600);
+    color: var(--surface);
     flex-shrink: 0;
 }
-.m-header.no-bg { background: transparent; color: var(--gray-800); }
+
+.m-header.no-bg {
+    background: transparent;
+    color: var(--ink-900);
+}
+
 .m-header-back {
     width: 36px;
     height: 36px;
@@ -82,12 +133,18 @@ body {
     justify-content: center;
     background: none;
     border: none;
+    border-radius: var(--radius-full);
     color: inherit;
     cursor: pointer;
     flex-shrink: 0;
-    margin-left: -8px;
+    margin-left: calc(var(--space-2) * -1);
 }
-.m-header-back svg { width: 22px; height: 22px; }
+
+.m-header-back svg {
+    width: 22px;
+    height: 22px;
+}
+
 .m-header-title {
     flex: 1;
     font-size: 17px;
@@ -97,19 +154,42 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.m-header-right { width: 36px; flex-shrink: 0; }
 
-/* ============ Page ============ */
+.m-header-right {
+    width: 36px;
+    flex-shrink: 0;
+}
+
+/* ── 可滚动页面：内部 12 栅格 ──
+ * 每个直接子元素默认占满 12 列（卡片 / 区块整行排布），
+ * 需要分栏的区块（.m-stats / .m-config-row）自行再声明 12 列并按 span 分配。
+ * row-gap 统一提供 16px 纵向节奏，因此下面用 #page.m-page > * 归零
+ * 直接子元素的外边距，避免与 m-mt-* / m-mb-* 工具类叠加成双倍间距。 */
 .m-page {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    padding: 16px;
-    padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 16px);
+    padding: var(--space-4);
+    padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-4));
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--m-gutter);
+    row-gap: var(--m-gutter);
+    align-content: start;
 }
 
-/* ============ Tab Bar ============ */
+.m-page > * {
+    grid-column: 1 / -1;
+}
+
+/* 权重高于工具类和 .m-card + .m-card，确保行间距只由 row-gap 提供一次 */
+#page.m-page > * {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* ═══════════════ 四、底部标签栏 ═══════════════ */
 .m-tabbar {
     position: fixed;
     bottom: 0;
@@ -118,295 +198,542 @@ body {
     width: 100%;
     max-width: 750px;
     display: flex;
+    align-items: stretch;
+    min-height: calc(var(--tabbar-h) + var(--safe-bottom));
+    padding: var(--space-1) var(--space-2);
+    padding-bottom: calc(var(--space-1) + var(--safe-bottom));
+    gap: var(--space-1);
     background: var(--surface);
-    border-top: 1px solid var(--gray-200);
-    padding-bottom: var(--safe-bottom);
+    border-top: 1px solid var(--ink-300);
     z-index: 200;
 }
+
+/* 标签与选项、答题卡格子共用同一套「选中契约」 */
 .m-tab {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 6px 0;
-    color: var(--gray-400);
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 2px solid var(--ink-300);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--ink-700);
     text-decoration: none;
     font-size: 10px;
-    gap: 2px;
-    transition: color 0.2s;
+    transition: var(--transition);
     -webkit-tap-highlight-color: transparent;
 }
-.m-tab svg { width: 22px; height: 22px; }
-.m-tab.active { color: var(--primary); }
 
-/* ============ Login ============ */
+.m-tab svg {
+    width: 22px;
+    height: 22px;
+}
+
+.m-tab.active {
+    border-color: var(--brand-600);
+    background: var(--brand-50);
+    color: var(--ink-900);
+    box-shadow: 0 0 0 3px var(--brand-100);
+}
+
+/* ═══════════════ 五、登录页 ═══════════════ */
 .m-login {
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
     min-height: 100dvh;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    padding: 32px 24px;
-    padding-top: calc(32px + var(--safe-top));
+    background: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-700) 100%);
+    padding: var(--space-8) var(--space-6);
+    padding-top: calc(var(--space-8) + var(--safe-top));
 }
+
 .m-login-card {
     width: 100%;
     max-width: 360px;
     background: var(--surface);
     border-radius: var(--radius-lg);
-    padding: 36px 24px;
+    padding: var(--space-8) var(--space-6);
     box-shadow: var(--shadow-lg);
 }
+
+/* 登录页品牌标记：图标由 icons.js 注入，尺寸在这里给足 */
+.m-login-brand {
+    width: var(--space-16);
+    height: var(--space-16);
+    margin: 0 auto var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--brand-600);
+    color: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.m-login-brand svg,
+.m-login-brand [data-icon] > svg {
+    width: 36px;
+    height: 36px;
+}
+
 .m-login-title {
     text-align: center;
     font-size: 22px;
     font-weight: 700;
-    color: var(--gray-800);
-    margin-bottom: 8px;
+    color: var(--ink-900);
+    margin-bottom: var(--space-2);
 }
+
 .m-login-subtitle {
     text-align: center;
     font-size: 13px;
-    color: var(--gray-400);
-    margin-bottom: 28px;
+    color: var(--ink-500);
+    margin-bottom: var(--space-6);
 }
 
-/* ============ Form ============ */
-.m-field { margin-bottom: 18px; }
+/* ═══════════════ 六、表单与按钮 ═══════════════ */
+.m-field {
+    margin-bottom: var(--space-4);
+}
+
 .m-field label {
     display: block;
     font-size: 13px;
     font-weight: 600;
-    color: var(--gray-600);
-    margin-bottom: 6px;
+    color: var(--ink-700);
+    margin-bottom: var(--space-2);
 }
+
+/* 输入框边框固定 2px：聚焦只换颜色，不换宽度，避免布局抖动 */
 .m-input {
     width: 100%;
-    height: 46px;
-    padding: 0 14px;
-    border: 1.5px solid var(--gray-200);
-    border-radius: var(--radius);
+    height: var(--space-12);
+    padding: 0 var(--space-4);
+    border: 2px solid var(--ink-300);
+    border-radius: var(--radius-md);
     font-size: 15px;
-    color: var(--gray-800);
+    color: var(--ink-900);
     background: var(--surface);
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color var(--duration) var(--ease);
     -webkit-appearance: none;
 }
-.m-input:focus { border-color: var(--primary); }
-.m-input::placeholder { color: var(--gray-400); }
+
+.m-input:focus {
+    border-color: var(--brand-600);
+}
+
+.m-input::placeholder {
+    color: var(--ink-500);
+}
 
 .m-btn {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 48px;
+    height: var(--space-12);
     border: none;
-    border-radius: var(--radius);
+    border-radius: var(--radius-md);
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.2s;
-    gap: 6px;
+    transition: opacity var(--duration) var(--ease);
+    gap: var(--space-2);
 }
-.m-btn:active { opacity: 0.8; }
-.m-btn-primary { background: var(--primary); color: white; }
-.m-btn-secondary { background: var(--gray-100); color: var(--gray-700); }
-.m-btn-danger { background: var(--danger); color: white; }
-.m-btn-sm { height: 36px; font-size: 13px; padding: 0 16px; width: auto; }
-.m-btn:disabled { opacity: 0.4; pointer-events: none; }
 
-/* ============ Cards ============ */
+.m-btn:active {
+    opacity: 0.8;
+}
+
+.m-btn-primary {
+    background: var(--brand-600);
+    color: var(--surface);
+}
+
+.m-btn-secondary {
+    background: var(--ink-100);
+    color: var(--ink-700);
+}
+
+.m-btn-danger {
+    background: var(--warning);
+    color: var(--surface);
+}
+
+.m-btn-sm {
+    height: var(--space-10);
+    font-size: 13px;
+    padding: 0 var(--space-4);
+    width: auto;
+}
+
+/* 描边按钮：用于「不会」这类次要动作；2px 边框与全局边框语言一致，
+   且 box-sizing 为 border-box，不会改变按钮高度。 */
+.m-btn-ghost {
+    background: var(--surface);
+    border: 2px solid var(--brand-600);
+    color: var(--brand-600);
+}
+
+/* 提交：结果导向的主动作，用成功色 */
+.m-btn-submit {
+    background: var(--success);
+    color: var(--surface);
+}
+
+/* 纯文字危险按钮（如「退出登录」）：无底色，仅文字用负向色 */
+.m-btn-danger-text {
+    background: transparent;
+    color: var(--warning);
+}
+
+.m-btn:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* ═══════════════ 七、卡片 ═══════════════ */
 .m-card {
     background: var(--surface);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
 }
-.m-card + .m-card { margin-top: 12px; }
-.m-card-body { padding: 16px; }
+
+.m-card + .m-card {
+    margin-top: var(--space-3);
+}
+
+.m-card-body {
+    padding: var(--space-4);
+}
+
 .m-card-header {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--gray-100);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--ink-100);
     font-weight: 600;
     font-size: 15px;
+    color: var(--ink-900);
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
-/* ============ Stats Grid ============ */
-.m-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.m-stat-card {
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 16px 12px;
-    text-align: center;
-    box-shadow: var(--shadow);
+/* ═══════════════ 八、统计栅格 ═══════════════
+ * 由页面 12 栅格派生：3 张卡各占 4 列，沿用移动端 16px 间距。 */
+.m-stats {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--m-gutter);
+    row-gap: var(--m-gutter);
 }
+
+.m-stat-card {
+    grid-column: span 4;
+    background: var(--surface);
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-3);
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
 .m-stat-icon {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 10px;
+    margin: 0 auto var(--space-3);
 }
-.m-stat-icon svg { width: 20px; height: 20px; }
-.m-stat-icon.teal { background: var(--primary-light); color: var(--primary); }
-.m-stat-icon.green { background: var(--success-light); color: var(--success); }
-.m-stat-icon.red { background: var(--danger-light); color: var(--danger); }
-.m-stat-value { font-size: 22px; font-weight: 700; color: var(--gray-800); }
-.m-stat-label { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
 
-/* ============ List Items ============ */
+.m-stat-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.m-stat-icon.teal {
+    background: var(--brand-50);
+    color: var(--brand-600);
+}
+
+.m-stat-icon.green {
+    background: var(--success-soft);
+    color: var(--success);
+}
+
+.m-stat-icon.red {
+    background: var(--warning-soft);
+    color: var(--warning);
+}
+
+.m-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink-900);
+    font-variant-numeric: tabular-nums;
+}
+
+.m-stat-label {
+    font-size: 11px;
+    color: var(--ink-500);
+    margin-top: var(--space-1);
+}
+
+/* ═══════════════ 九、列表项 ═══════════════ */
 .m-list-item {
     display: flex;
     align-items: center;
-    padding: 14px 16px;
+    padding: var(--space-3) var(--space-4);
     background: var(--surface);
-    border-bottom: 1px solid var(--gray-100);
-    gap: 12px;
+    border-bottom: 1px solid var(--ink-100);
+    gap: var(--space-3);
     min-height: 52px;
 }
-.m-list-item:last-child { border-bottom: none; }
-.m-list-item:active { background: var(--gray-50); }
-.m-list-item-content { flex: 1; min-width: 0; }
+
+.m-list-item:last-child {
+    border-bottom: none;
+}
+
+.m-list-item:active {
+    background: var(--surface-sunken);
+}
+
+.m-list-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
 .m-list-item-title {
     font-size: 15px;
     font-weight: 500;
-    color: var(--gray-800);
+    color: var(--ink-900);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
 .m-list-item-desc {
     font-size: 12px;
-    color: var(--gray-400);
-    margin-top: 2px;
-}
-.m-list-item-right {
-    font-size: 13px;
-    color: var(--gray-400);
-    flex-shrink: 0;
+    color: var(--ink-500);
+    margin-top: var(--space-1);
 }
 
-/* ============ Badges ============ */
+.m-list-item-right {
+    font-size: 13px;
+    color: var(--ink-500);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════ 十、徽标 ═══════════════
+ * 题型徽标（单选 / 多选 / 判断）本身没有语义色，
+ * 统一为中性样式，只靠文字标签区分，不再占用蓝 / 琥珀 / 靛蓝。
+ * 对错徽标用语义色浅底；tokens.css 没有深色语义文字令牌，
+ * 因此文字用 --ink-900 保证对比度，绿 / 红由底色承载。 */
 .m-badge {
     display: inline-flex;
     align-items: center;
-    padding: 2px 8px;
-    border-radius: 20px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
     font-size: 11px;
     font-weight: 600;
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
 }
-.m-badge-single { background: #dbeafe; color: #1d4ed8; }
-.m-badge-multiple { background: #fef3c7; color: #b45309; }
-.m-badge-truefalse { background: #e0e7ff; color: #4338ca; }
-.m-badge-correct { background: var(--success-light); color: var(--success); }
-.m-badge-wrong { background: var(--danger-light); color: var(--danger); }
 
-/* ============ Practice ============ */
+.m-badge-single,
+.m-badge-multiple,
+.m-badge-truefalse,
+.m-badge-unanswered {
+    background: var(--surface-sunken);
+    color: var(--ink-700);
+}
+
+.m-badge-correct {
+    background: var(--success-soft);
+    color: var(--ink-900);
+}
+
+.m-badge-wrong {
+    background: var(--warning-soft);
+    color: var(--ink-900);
+}
+
+/* ═══════════════ 十一、练习页 ═══════════════ */
 .m-practice-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
     font-size: 13px;
-    color: var(--gray-500);
+    color: var(--ink-500);
+    font-variant-numeric: tabular-nums;
 }
+
 .m-progress-bar {
-    height: 4px;
-    background: var(--gray-200);
-    border-radius: 2px;
-    margin-bottom: 16px;
+    height: var(--space-1);
+    background: var(--ink-100);
+    border-radius: var(--radius-full);
+    margin-bottom: var(--space-4);
     overflow: hidden;
 }
+
 .m-progress-fill {
     height: 100%;
-    background: var(--primary);
-    border-radius: 2px;
-    transition: width 0.3s ease;
+    background: var(--brand-600);
+    border-radius: var(--radius-full);
+    transition: width var(--duration) var(--ease);
 }
+
 .m-question-card {
     background: var(--surface);
     border-radius: var(--radius-lg);
-    padding: 20px 16px;
-    box-shadow: var(--shadow);
-    margin-bottom: 16px;
+    padding: var(--space-5) var(--space-4);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--space-4);
 }
+
 .m-question-stem {
     font-size: 16px;
     line-height: 1.6;
-    color: var(--gray-800);
-    margin-bottom: 16px;
+    color: var(--ink-900);
+    margin-bottom: var(--space-4);
 }
+
+/* 题干上方的题型标记行 */
+.m-question-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+/* 可点文字（如「答题卡」）：没有底色，靠品牌色与字重区分 */
+.m-link {
+    color: var(--brand-600);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* JS 用它包裹全部选项；选项间距由 .m-option 自身负责 */
+.m-question-options {
+    display: block;
+}
+
+/* ── 选项：选中契约（默认 2px --ink-300 / --surface / --ink-700） ── */
 .m-option {
     display: flex;
     align-items: flex-start;
-    padding: 14px;
-    border: 1.5px solid var(--gray-200);
-    border-radius: var(--radius);
-    margin-bottom: 10px;
-    gap: 10px;
+    padding: var(--space-3) var(--space-4);
+    border: 2px solid var(--ink-300);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--ink-700);
+    margin-bottom: var(--space-3);
+    gap: var(--space-3);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: var(--transition);
     min-height: 48px;
 }
-.m-option:active { transform: scale(0.98); }
-.m-option.selected {
-    border-color: var(--primary);
-    background: var(--primary-light);
+
+.m-option:active {
+    transform: scale(0.98);
 }
+
+.m-option.selected {
+    border-color: var(--brand-600);
+    background: var(--brand-50);
+    color: var(--ink-900);
+    box-shadow: 0 0 0 3px var(--brand-100);
+}
+
 .m-option-letter {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: var(--gray-100);
+    width: var(--space-6);
+    height: var(--space-6);
+    border-radius: var(--radius-full);
+    background: var(--ink-100);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 13px;
     font-weight: 600;
-    color: var(--gray-500);
+    color: var(--ink-700);
     flex-shrink: 0;
 }
+
 .m-option.selected .m-option-letter {
-    background: var(--primary);
-    color: white;
+    background: var(--brand-600);
+    color: var(--surface);
 }
-.m-option-text { font-size: 15px; line-height: 1.5; padding-top: 2px; }
 
-/* Practice answer review */
-.m-option.correct { border-color: var(--success); background: var(--success-light); }
-.m-option.correct .m-option-letter { background: var(--success); color: white; }
-.m-option.wrong-selected { border-color: var(--danger); background: var(--danger-light); }
-.m-option.wrong-selected .m-option-letter { background: var(--danger); color: white; }
+.m-option-text {
+    font-size: 15px;
+    line-height: 1.5;
+    padding-top: var(--space-1);
+}
 
-/* Practice bottom bar */
+/* ── 阅卷态：语义结果色，边框宽度仍固定 2px ── */
+.m-option.correct {
+    border-color: var(--success);
+    background: var(--success-soft);
+    color: var(--ink-900);
+}
+
+.m-option.correct .m-option-letter {
+    background: var(--success);
+    color: var(--surface);
+}
+
+.m-option.wrong-selected {
+    border-color: var(--warning);
+    background: var(--warning-soft);
+    color: var(--ink-900);
+}
+
+.m-option.wrong-selected .m-option-letter {
+    background: var(--warning);
+    color: var(--surface);
+}
+
+/* ── 练习页底部操作条 ──
+ * 最多会并排出现 4 个按钮（上一题 / 不会 / 下一题 / 提交），
+ * 因此收紧字号与横向内边距，并允许收缩，确保 360px 宽也不换行。 */
 .m-practice-bar {
     display: flex;
-    gap: 10px;
-    padding: 12px 0;
+    gap: var(--space-2);
+    padding: var(--space-3) 0;
 }
-.m-practice-bar .m-btn { flex: 1; }
 
-/* ============ Answer Sheet Drawer ============ */
+.m-practice-bar .m-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 0 var(--space-2);
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* ═══════════════ 十二、答题卡抽屉 ═══════════════ */
 .m-drawer-mask {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.4);
+    background: var(--m-scrim);
     z-index: 300;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s;
+    transition: opacity var(--duration) var(--ease);
 }
-.m-drawer-mask.open { opacity: 1; pointer-events: auto; }
+
+.m-drawer-mask.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 关闭动画必须短于 app.js 里 300ms 的移除延时，否则元素会先被删掉 */
 .m-drawer {
     position: fixed;
     bottom: 0;
@@ -415,114 +742,200 @@ body {
     width: 100%;
     max-width: 750px;
     max-height: 70vh;
+    max-height: 70dvh;
     background: var(--surface);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     z-index: 301;
-    transition: transform 0.3s ease;
+    transition: transform var(--duration) var(--ease);
     display: flex;
     flex-direction: column;
     padding-bottom: var(--safe-bottom);
 }
-.m-drawer.open { transform: translateX(-50%) translateY(0); }
+
+.m-drawer.open {
+    transform: translateX(-50%) translateY(0);
+}
+
 .m-drawer-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px;
-    border-bottom: 1px solid var(--gray-100);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--ink-100);
     flex-shrink: 0;
 }
-.m-drawer-title { font-size: 16px; font-weight: 600; }
+
+.m-drawer-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink-900);
+}
+
 .m-drawer-close {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border: none;
-    background: var(--gray-100);
-    border-radius: 50%;
+    background: var(--surface-sunken);
+    border-radius: var(--radius-full);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    color: var(--ink-700);
 }
-.m-drawer-close svg { width: 18px; height: 18px; color: var(--gray-500); }
+
+.m-drawer-close svg {
+    width: 18px;
+    height: 18px;
+    color: var(--ink-500);
+}
+
 .m-drawer-body {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: var(--space-4);
 }
+
+/* 12 栅格派生 6 列：每格跨 2 列 */
 .m-sheet-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--space-3);
     justify-items: center;
 }
+
+/* ── 答题卡格子：选中契约 ── */
 .m-sheet-btn {
+    grid-column: span 2;
     width: 40px;
     height: 40px;
-    border-radius: 10px;
-    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    border: 2px solid var(--ink-300);
     background: var(--surface);
-    color: var(--gray-500);
+    color: var(--ink-700);
     font-size: 14px;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transition: var(--transition);
 }
-.m-sheet-btn.answered { background: var(--primary-light); border-color: var(--primary); color: white; }
-.m-sheet-btn.current { background: var(--primary); border-color: var(--primary-dark); color: white; box-shadow: 0 0 0 3px rgba(13,148,136,0.2); }
-.m-sheet-btn.wrong { background: #fca5a5; border-color: #ef4444; color: #991b1b; }
-.m-sheet-btn.correct { background: #86efac; border-color: #22c55e; color: #166534; }
-.m-sheet-btn.wrong.current { background: #ef4444; color: white; }
-.m-sheet-btn.correct.current { background: #22c55e; color: white; }
+
+/* 已答：品牌浅底 + 浅边框，作为「进度」态，区别于「当前」选中态 */
+.m-sheet-btn.answered {
+    background: var(--brand-50);
+    border-color: var(--brand-200);
+    color: var(--brand-800);
+}
+
+/* 当前题 = 选中态 */
+.m-sheet-btn.current {
+    background: var(--brand-50);
+    border-color: var(--brand-600);
+    color: var(--ink-900);
+    box-shadow: 0 0 0 3px var(--brand-100);
+}
+
+/* 对 / 错：语义色。浅底 + 深字保证可读性 */
+.m-sheet-btn.wrong {
+    background: var(--warning-soft);
+    border-color: var(--warning);
+    color: var(--ink-900);
+}
+
+.m-sheet-btn.correct {
+    background: var(--success-soft);
+    border-color: var(--success);
+    color: var(--ink-900);
+}
+
+/* 对 / 错 且是当前题：实心强调 */
+.m-sheet-btn.wrong.current {
+    background: var(--warning);
+    border-color: var(--warning);
+    color: var(--surface);
+    box-shadow: 0 0 0 3px var(--warning-soft);
+}
+
+.m-sheet-btn.correct.current {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--surface);
+    box-shadow: 0 0 0 3px var(--success-soft);
+}
+
 .m-sheet-legend {
     display: flex;
-    gap: 16px;
-    margin-bottom: 14px;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
     justify-content: center;
 }
+
 .m-sheet-legend-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     font-size: 12px;
-    color: var(--gray-500);
+    color: var(--ink-500);
 }
+
+/* 图例色块与格子状态一一对应 */
 .m-sheet-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    border: 1.5px solid var(--gray-300);
+    width: var(--space-3);
+    height: var(--space-3);
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--ink-300);
     background: var(--surface);
 }
-.m-sheet-dot.current { background: var(--primary); border-color: var(--primary-dark); }
-.m-sheet-dot.answered { background: var(--primary-light); border-color: var(--primary); }
+
+.m-sheet-dot.current {
+    background: var(--brand-50);
+    border-color: var(--brand-600);
+}
+
+.m-sheet-dot.answered {
+    background: var(--brand-50);
+    border-color: var(--brand-200);
+}
+
 .m-sheet-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px;
-    border-top: 1px solid var(--gray-100);
+    padding: var(--space-4);
+    border-top: 1px solid var(--ink-300);
     flex-shrink: 0;
 }
 
-/* ============ Result ============ */
+/* ═══════════════ 十三、结果页 ═══════════════ */
 .m-result-ring {
     width: 160px;
     height: 160px;
-    margin: 0 auto 20px;
+    margin: 0 auto var(--space-5);
     position: relative;
 }
-.m-result-ring svg { transform: rotate(-90deg); }
-.m-result-ring-bg { fill: none; stroke: var(--gray-200); stroke-width: 10; }
+
+.m-result-ring svg {
+    transform: rotate(-90deg);
+}
+
+.m-result-ring-bg {
+    fill: none;
+    stroke: var(--ink-300);
+    stroke-width: 10;
+}
+
+/* 进度环入场需要可感知的时长，用 --duration 的整数倍派生，不写死秒数 */
 .m-result-ring-fill {
     fill: none;
-    stroke: var(--primary);
+    stroke: var(--brand-600);
     stroke-width: 10;
     stroke-linecap: round;
-    transition: stroke-dashoffset 1s ease;
+    transition: stroke-dashoffset calc(var(--duration) * 5) var(--ease);
 }
+
 .m-result-ring-text {
     position: absolute;
     inset: 0;
@@ -531,237 +944,628 @@ body {
     align-items: center;
     justify-content: center;
 }
-.m-result-ring-value { font-size: 32px; font-weight: 700; color: var(--gray-800); }
-.m-result-ring-label { font-size: 13px; color: var(--gray-400); }
-.m-result-stats { display: flex; justify-content: center; gap: 32px; margin-bottom: 24px; }
-.m-result-stat { text-align: center; }
-.m-result-stat-value { font-size: 24px; font-weight: 700; }
-.m-result-stat-value.correct { color: var(--success); }
-.m-result-stat-value.wrong { color: var(--danger); }
-.m-result-stat-label { font-size: 12px; color: var(--gray-400); }
-.m-result-actions { display: flex; gap: 12px; }
-.m-result-actions .m-btn { flex: 1; }
 
-/* ============ Config Form ============ */
+.m-result-ring-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--ink-900);
+    font-variant-numeric: tabular-nums;
+}
+
+.m-result-ring-label {
+    font-size: 13px;
+    color: var(--ink-500);
+}
+
+.m-result-stats {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-8);
+    margin-bottom: var(--space-6);
+}
+
+.m-result-stat {
+    text-align: center;
+}
+
+.m-result-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.m-result-stat-value.correct {
+    color: var(--success);
+}
+
+.m-result-stat-value.wrong {
+    color: var(--warning);
+}
+
+.m-result-stat-label {
+    font-size: 12px;
+    color: var(--ink-500);
+}
+
+.m-result-actions {
+    display: flex;
+    gap: var(--space-3);
+}
+
+.m-result-actions .m-btn {
+    flex: 1;
+}
+
+/* ═══════════════ 十四、练习配置（计数器） ═══════════════
+ * 同样由 12 栅格派生：3 项各占 4 列。 */
 .m-config-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
 }
+
 .m-config-item {
+    grid-column: span 4;
     background: var(--surface);
-    border-radius: var(--radius);
-    padding: 16px 12px;
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-3);
     text-align: center;
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-sm);
 }
-.m-config-label { font-size: 12px; color: var(--gray-500); margin-bottom: 8px; }
+
+.m-config-label {
+    font-size: 12px;
+    color: var(--ink-500);
+    margin-bottom: var(--space-2);
+}
+
 .m-counter {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
+    gap: var(--space-4);
 }
+
 .m-counter-btn {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
-    border: 1.5px solid var(--gray-300);
+    border-radius: var(--radius-full);
+    border: 2px solid var(--ink-300);
     background: var(--surface);
-    color: var(--gray-600);
+    color: var(--ink-700);
     font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transition: var(--transition);
 }
-.m-counter-btn:active { background: var(--gray-100); }
-.m-counter-value { font-size: 22px; font-weight: 700; min-width: 28px; text-align: center; }
 
-/* ============ Wrong Book ============ */
+.m-counter-btn:active {
+    background: var(--ink-100);
+}
+
+.m-counter-value {
+    font-size: 22px;
+    font-weight: 700;
+    min-width: 28px;
+    text-align: center;
+    color: var(--ink-900);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════ 十五、错题本 ═══════════════
+ * 可点选卡片，套用同一套选中契约。 */
 .m-wrong-item {
     background: var(--surface);
+    border: 2px solid var(--ink-300);
     border-radius: var(--radius-lg);
-    padding: 16px;
-    margin-bottom: 10px;
-    box-shadow: var(--shadow);
+    padding: var(--space-4);
+    margin-bottom: var(--space-3);
+    box-shadow: var(--shadow-sm);
+    color: var(--ink-700);
 }
+
+.m-wrong-item.selected {
+    border-color: var(--brand-600);
+    background: var(--brand-50);
+    color: var(--ink-900);
+    box-shadow: 0 0 0 3px var(--brand-100);
+}
+
 .m-wrong-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
 }
+
 .m-wrong-stem {
     font-size: 14px;
     line-height: 1.5;
-    color: var(--gray-700);
+    color: var(--ink-700);
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-3);
 }
+
 .m-wrong-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: var(--space-3);
 }
-.m-wrong-meta { font-size: 12px; color: var(--gray-400); }
 
-/* ============ Session List ============ */
+.m-wrong-meta {
+    font-size: 12px;
+    color: var(--ink-500);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════ 十六、练习记录 ═══════════════ */
 .m-session-item {
     background: var(--surface);
+    border: 2px solid var(--ink-300);
     border-radius: var(--radius-lg);
-    padding: 16px;
-    margin-bottom: 10px;
-    box-shadow: var(--shadow);
+    padding: var(--space-4);
+    margin-bottom: var(--space-3);
+    box-shadow: var(--shadow-sm);
+    color: var(--ink-700);
     cursor: pointer;
+    transition: var(--transition);
 }
-.m-session-item:active { transform: scale(0.98); }
+
+.m-session-item.selected {
+    border-color: var(--brand-600);
+    background: var(--brand-50);
+    color: var(--ink-900);
+    box-shadow: 0 0 0 3px var(--brand-100);
+}
+
+.m-session-item:active {
+    transform: scale(0.98);
+}
+
 .m-session-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
 }
-.m-session-time { font-size: 13px; color: var(--gray-400); }
+
+.m-session-time {
+    font-size: 13px;
+    color: var(--ink-500);
+    font-variant-numeric: tabular-nums;
+}
+
+.m-session-bank {
+    font-size: 13px;
+    color: var(--ink-700);
+    margin-bottom: var(--space-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .m-session-stats {
     display: flex;
-    gap: 16px;
+    gap: var(--space-4);
     font-size: 13px;
+    font-variant-numeric: tabular-nums;
 }
-.m-session-stats .correct { color: var(--success); }
-.m-session-stats .wrong { color: var(--danger); }
 
-/* ============ Answer Review ============ */
+.m-session-stats .correct {
+    color: var(--success);
+}
+
+.m-session-stats .wrong {
+    color: var(--warning);
+}
+
+/* ═══════════════ 十七、答题回顾 ═══════════════ */
 .m-review-card {
     background: var(--surface);
     border-radius: var(--radius-lg);
-    padding: 16px;
-    margin-bottom: 12px;
-    box-shadow: var(--shadow);
-    border-left: 4px solid var(--gray-200);
+    padding: var(--space-4);
+    margin-bottom: var(--space-3);
+    box-shadow: var(--shadow-sm);
+    border-left: 4px solid var(--ink-300);
 }
-.m-review-card.correct { border-left-color: var(--success); }
-.m-review-card.wrong { border-left-color: var(--danger); }
-.m-review-stem { font-size: 15px; line-height: 1.5; margin-bottom: 12px; }
+
+.m-review-card.correct {
+    border-left-color: var(--success);
+}
+
+.m-review-card.wrong {
+    border-left-color: var(--warning);
+}
+
+/* 未作答：保持中性左边线，与默认态一致，显式声明以免被误认为遗漏 */
+.m-review-card.unanswered {
+    border-left-color: var(--ink-300);
+}
+
+.m-review-stem {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--ink-900);
+    margin-bottom: var(--space-3);
+}
+
 .m-review-option {
-    padding: 10px 12px;
-    border-radius: 8px;
-    margin-bottom: 6px;
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-2);
     font-size: 14px;
-    background: var(--gray-50);
+    background: var(--surface-sunken);
+    color: var(--ink-700);
 }
-.m-review-option.correct { background: var(--success-light); color: var(--success); }
-.m-review-option.wrong-selected { background: var(--danger-light); color: var(--danger); }
+
+.m-review-option.correct {
+    background: var(--success-soft);
+    color: var(--ink-900);
+}
+
+.m-review-option.wrong-selected {
+    background: var(--warning-soft);
+    color: var(--ink-900);
+}
+
 .m-review-explanation {
-    margin-top: 10px;
-    padding: 10px 12px;
-    background: var(--gray-50);
-    border-radius: 8px;
+    margin-top: var(--space-3);
+    padding: var(--space-3);
+    background: var(--surface-sunken);
+    border-radius: var(--radius-sm);
     font-size: 13px;
-    color: var(--gray-600);
+    color: var(--ink-700);
     line-height: 1.5;
 }
 
-/* ============ Profile ============ */
+/* ═══════════════ 十八、个人中心 ═══════════════ */
 .m-profile-header {
     text-align: center;
-    padding: 24px 0;
+    padding: var(--space-6) 0;
 }
+
 .m-profile-avatar {
     width: 64px;
     height: 64px;
-    border-radius: 50%;
-    background: var(--primary);
-    color: white;
+    border-radius: var(--radius-full);
+    background: var(--brand-600);
+    color: var(--surface);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 24px;
     font-weight: 700;
-    margin: 0 auto 10px;
+    margin: 0 auto var(--space-3);
 }
-.m-profile-name { font-size: 18px; font-weight: 600; }
-.m-profile-role { font-size: 13px; color: var(--gray-400); }
+
+.m-profile-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink-900);
+}
+
+.m-profile-role {
+    font-size: 13px;
+    color: var(--ink-500);
+}
+
+/* 区块小标题：纵向间距已由 .m-page 的 row-gap 提供，这里不再加内边距 */
 .m-section-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--gray-400);
-    padding: 0 0 8px;
+    color: var(--ink-500);
+    padding: 0;
 }
 
-/* ============ Empty ============ */
+/* ═══════════════ 十九、空状态与加载 ═══════════════ */
 .m-empty {
     text-align: center;
-    padding: 48px 24px;
-    color: var(--gray-400);
+    padding: var(--space-12) var(--space-6);
+    color: var(--ink-500);
 }
-.m-empty svg { width: 64px; height: 64px; margin-bottom: 12px; opacity: 0.3; }
-.m-empty p { font-size: 14px; }
 
-/* ============ Loading ============ */
+.m-empty svg {
+    width: var(--space-16);
+    height: var(--space-16);
+    margin-bottom: var(--space-3);
+    opacity: 0.3;
+}
+
+.m-empty p {
+    font-size: 14px;
+}
+
 .m-loading {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 48px;
-    color: var(--gray-400);
+    padding: var(--space-12);
+    color: var(--ink-500);
     font-size: 14px;
-    gap: 8px;
+    gap: var(--space-2);
 }
+
 .m-spinner {
     width: 20px;
     height: 20px;
-    border: 2px solid var(--gray-200);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
+    border: 2px solid var(--ink-300);
+    border-top-color: var(--brand-600);
+    border-radius: var(--radius-full);
+    animation: spin calc(var(--duration) * 3) linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
 
-/* ============ Toggle ============ */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ═══════════════ 二十、开关 ═══════════════
+ * 内部 2px / 18px 是轨道与滑块的几何偏移（44 - 22 - 2*2 = 18），
+ * 不是间距，故不套用 --space-* 令牌。 */
 .m-toggle {
     width: 44px;
     height: 26px;
-    border-radius: 13px;
-    background: var(--gray-300);
+    border-radius: var(--radius-full);
+    background: var(--ink-300);
     position: relative;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background var(--duration) var(--ease);
     flex-shrink: 0;
 }
-.m-toggle.on { background: var(--primary); }
+
+.m-toggle.on {
+    background: var(--brand-600);
+}
+
 .m-toggle::after {
     content: '';
     width: 22px;
     height: 22px;
-    border-radius: 50%;
-    background: white;
+    border-radius: var(--radius-full);
+    background: var(--surface);
     position: absolute;
     top: 2px;
     left: 2px;
-    transition: transform 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    transition: transform var(--duration) var(--ease);
+    box-shadow: var(--shadow-sm);
 }
-.m-toggle.on::after { transform: translateX(18px); }
 
-/* ============ Utilities ============ */
-.m-flex { display: flex; }
-.m-flex-between { display: flex; justify-content: space-between; align-items: center; }
-.m-gap-8 { gap: 8px; }
-.m-gap-12 { gap: 12px; }
-.m-mt-8 { margin-top: 8px; }
-.m-mt-12 { margin-top: 12px; }
-.m-mt-16 { margin-top: 16px; }
-.m-mb-12 { margin-bottom: 12px; }
-.m-mb-16 { margin-bottom: 16px; }
-.m-text-center { text-align: center; }
-.m-text-sm { font-size: 13px; }
-.m-text-muted { color: var(--gray-400); }
-.m-text-success { color: var(--success); }
-.m-text-danger { color: var(--danger); }
-.m-fw-600 { font-weight: 600; }
-.m-hidden { display: none !important; }
+.m-toggle.on::after {
+    transform: translateX(18px);
+}
+
+/* ═══════════════ 二十一、焦点可见环 ═══════════════
+ * 全站统一的键盘焦点样式：只画外轮廓，不改边框 / 底色，
+ * 因此不会破坏上面的选中契约，也不会造成布局位移。 */
+.m-header-back:focus-visible,
+.m-tab:focus-visible,
+.m-btn:focus-visible,
+.m-input:focus-visible,
+.m-option:focus-visible,
+.m-counter-btn:focus-visible,
+.m-drawer-close:focus-visible,
+.m-sheet-btn:focus-visible,
+.m-session-item:focus-visible,
+.m-wrong-item:focus-visible,
+.m-list-item:focus-visible,
+.m-link:focus-visible,
+.m-entry-link:focus-visible,
+.m-toggle:focus-visible {
+    outline: 2px solid var(--brand-600);
+    outline-offset: 2px;
+}
+
+/* ═══════════════ 二十二、首页入口与题目标记 ═══════════════
+ * 与新版 app.js 对齐的标记类：首页入口卡片、题库名、题型行。
+ * 入口整行可点，交互态与 .m-list-item 保持一致（浅底反馈，不加边框）。 */
+.m-entry-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    color: var(--ink-900);
+    text-decoration: none;
+    transition: background var(--duration) var(--ease);
+}
+
+.m-entry-link:active {
+    background: var(--surface-sunken);
+}
+
+.m-entry-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    background: var(--brand-50);
+    color: var(--brand-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.m-entry-icon svg,
+.m-entry-icon [data-icon] > svg {
+    width: 22px;
+    height: 22px;
+}
+
+.m-entry-arrow {
+    margin-left: auto;
+    color: var(--ink-300);
+    display: flex;
+    align-items: center;
+}
+
+.m-entry-arrow svg,
+.m-entry-arrow [data-icon] > svg {
+    width: 20px;
+    height: 20px;
+}
+
+.m-bank-name {
+    font-size: 16px;
+    color: var(--ink-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ═══════════════ 二十三、工具类 ═══════════════ */
+.m-flex {
+    display: flex;
+}
+
+.m-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.m-gap-8 {
+    gap: var(--space-2);
+}
+
+.m-gap-12 {
+    gap: var(--space-3);
+}
+
+.m-mt-8 {
+    margin-top: var(--space-2);
+}
+
+.m-mt-12 {
+    margin-top: var(--space-3);
+}
+
+.m-mt-16 {
+    margin-top: var(--space-4);
+}
+
+.m-mb-12 {
+    margin-bottom: var(--space-3);
+}
+
+.m-mb-16 {
+    margin-bottom: var(--space-4);
+}
+
+.m-pt-24 {
+    padding-top: var(--space-6);
+}
+
+.m-wrap {
+    flex-wrap: wrap;
+}
+
+.m-text-center {
+    text-align: center;
+}
+
+.m-text-sm {
+    font-size: 13px;
+}
+
+.m-text-muted {
+    color: var(--ink-500);
+}
+
+.m-text-success {
+    color: var(--success);
+}
+
+.m-text-danger {
+    color: var(--warning);
+}
+
+.m-fw-600 {
+    font-weight: 600;
+}
+
+.m-hidden {
+    display: none !important;
+}
+
+/* ═══════════════ 二十四、极窄屏适配（≤420px） ═══════════════
+ * 移动端专用样式表，只需这一个断点：收紧留白、缩小统计数字与
+ * 答题卡格子，保证 360~420px 设备上不换行、不溢出。 */
+@media (max-width: 420px) {
+    :root {
+        --m-gutter: var(--space-3);
+    }
+
+    .m-page {
+        padding: var(--space-3);
+        padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
+    }
+
+    .m-header-title {
+        font-size: 16px;
+    }
+
+    .m-login {
+        padding: var(--space-6) var(--space-4);
+        padding-top: calc(var(--space-6) + var(--safe-top));
+    }
+
+    .m-login-card {
+        padding: var(--space-6) var(--space-4);
+    }
+
+    .m-stat-card {
+        padding: var(--space-3) var(--space-2);
+    }
+
+    .m-stat-icon {
+        width: var(--space-8);
+        height: var(--space-8);
+    }
+
+    .m-stat-value {
+        font-size: 20px;
+    }
+
+    .m-config-item {
+        padding: var(--space-3) var(--space-2);
+    }
+
+    .m-result-ring-value {
+        font-size: 28px;
+    }
+
+    .m-sheet-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 13px;
+    }
+
+    .m-empty {
+        padding: var(--space-8) var(--space-4);
+    }
+}
+
+/* ═══════════════ 二十五、减少动效 ═══════════════
+ * tokens.css 已全局把 animation / transition 时长压到 0.001ms，
+ * 这里只补充取消「按下缩放」这类纯手势位移。
+ * 注意：不加 !important，避免覆盖 tokens.css 的全局规则。 */
+@media (prefers-reduced-motion: reduce) {
+    .m-option:active,
+    .m-session-item:active {
+        transform: none;
+    }
+
+    .m-toggle::after,
+    .m-progress-fill,
+    .m-result-ring-fill {
+        transition: none;
+    }
+}

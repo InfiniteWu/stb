@@ -2,7 +2,12 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "shuatibao",
   "main": "worker/src/index.ts",
-  "compatibility_date": "2026-09-12",
+  // 取值受测试工具链约束：@cloudflare/vitest-pool-workers 依赖的 miniflare
+  // 捆绑的是 workerd 1.20260815（wrangler 自带的则更新），更高日期无法启动。
+  // 这里刻意与测试保持同一个日期 —— 让「测试的运行时」与「线上的运行时」
+  // 完全一致，而不是让测试偷偷跑在另一套语义上。
+  // 待 vitest-pool-workers 升级 miniflare 后，可把此值一并上调。
+  "compatibility_date": "2026-08-15",
   // 不启用任何 compatibility_flags：本项目只用 Web 标准 API，
   // 不需要 nodejs_compat，保持冷启动最小。
 
