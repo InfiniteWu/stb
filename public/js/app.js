@@ -194,6 +194,36 @@ const App = {
         return map[type] || type;
     },
 
+    /**
+     * 页面 banner。
+     *
+     * 每个分页面顶部统一使用（答题页除外 —— 那里要把纵向空间全留给题目）。
+     * 背景由渐变、网格、光晕、文字遮罩四层构成，图标取自 Icons 模块，
+     * 因此图标仍然只有一份定义。
+     *
+     * @param {object} o
+     * @param {string} o.icon       Icons 中的图标名
+     * @param {string} o.title      标题
+     * @param {string} [o.subtitle] 副标题
+     * @param {string} [o.actions]  右侧操作区 HTML
+     */
+    banner({ icon, title, subtitle, actions }) {
+        return `
+            <section class="page-banner">
+                <div class="page-banner-bg" aria-hidden="true"></div>
+                <div class="page-banner-scrim" aria-hidden="true"></div>
+                <div class="page-banner-inner">
+                    <div class="page-banner-icon">${Icons[icon] || Icons.brand}</div>
+                    <div class="page-banner-text">
+                        <h1>${esc(title)}</h1>
+                        ${subtitle ? `<p>${esc(subtitle)}</p>` : ''}
+                    </div>
+                    ${actions ? `<div class="page-banner-actions">${actions}</div>` : ''}
+                </div>
+            </section>
+        `;
+    },
+
     /** 正确率显示；F6：total 为 0 时不再出现 NaN% */
     accuracyText(correct, total) {
         if (!total || total <= 0) return '—';
@@ -214,12 +244,7 @@ const App = {
             const perBank = data.today_wrong_per_bank || [];
 
             c.innerHTML = `
-                <div class="page-header">
-                    <div>
-                        <h1>仪表盘</h1>
-                        <div class="subtitle">今日学习概览</div>
-                    </div>
-                </div>
+                ${this.banner({ icon: 'dashboard', title: '仪表盘', subtitle: '今日学习概览' })}
                 <div class="dashboard-grid">
                     <div class="stat-card">
                         <div class="stat-icon teal">${Icons.target}</div>
@@ -279,13 +304,12 @@ const App = {
             const isAdmin = this.currentUser.role === 'admin';
 
             c.innerHTML = `
-                <div class="page-header">
-                    <div>
-                        <h1>题库管理</h1>
-                        <div class="subtitle">共 ${banks.length} 个题库</div>
-                    </div>
-                    ${isAdmin ? `<div class="header-actions"><button class="btn btn-primary" id="btn-create-bank">${Icons.plus} 新建题库</button></div>` : ''}
-                </div>
+                ${this.banner({
+                    icon: 'book-stack',
+                    title: '题库管理',
+                    subtitle: `共 ${banks.length} 个题库`,
+                    actions: isAdmin ? `<button class="btn btn-primary" id="btn-create-bank">${Icons.plus} 新建题库</button>` : '',
+                })}
                 <div class="bank-grid">
                     ${
                         banks.length === 0
@@ -390,16 +414,13 @@ const App = {
             const totalPages = Math.max(1, Math.ceil(listed.total / listed.per_page));
 
             c.innerHTML = `
-                <div class="page-header">
-                    <div>
-                        <h1>${esc(bank.name)}</h1>
-                        <div class="subtitle">${esc(bank.description || '暂无描述')} · 共 ${listed.total} 题</div>
-                    </div>
-                    <div class="header-actions">
-                        <button class="btn btn-secondary" id="btn-practice-here">开始练习</button>
-                        ${isAdmin ? `<button class="btn btn-primary" id="btn-add-question">${Icons.plus} 添加题目</button>` : ''}
-                    </div>
-                </div>
+                ${this.banner({
+                    icon: 'book',
+                    title: bank.name,
+                    subtitle: `${bank.description || '暂无描述'} · 共 ${listed.total} 题`,
+                    actions: `<button class="btn btn-secondary" id="btn-practice-here">开始练习</button>` +
+                             (isAdmin ? `<button class="btn btn-primary" id="btn-add-question">${Icons.plus} 添加题目</button>` : ''),
+                })}
                 <div class="card"><div class="card-body">
                     <div class="table-wrap"><table class="table">
                         <thead><tr><th>ID</th><th>题型</th><th>题干</th>${isAdmin ? '<th>操作</th>' : ''}</tr></thead>
@@ -524,12 +545,12 @@ const App = {
             const answerSet = Array.isArray(answer) ? answer : [answer];
 
             c.innerHTML = `
-                <div class="page-header">
-                    <div><h1>${isEdit ? '编辑题目' : '添加题目'}</h1></div>
-                    <div class="header-actions">
-                        <button class="btn btn-secondary" id="btn-cancel">返回</button>
-                    </div>
-                </div>
+                ${this.banner({
+                    icon: 'edit',
+                    title: isEdit ? '编辑题目' : '添加题目',
+                    subtitle: isEdit ? '修改题干、选项与答案' : '为题库新增一道题目',
+                    actions: `<button class="btn btn-secondary" id="btn-cancel">返回</button>`,
+                })}
                 <form id="question-form" class="card"><div class="card-body">
                     <div class="form-row">
                         <div class="form-group">
@@ -716,7 +737,7 @@ const App = {
             try {
                 const banks = await API.getBanks();
                 c.innerHTML = `
-                    <div class="page-header"><div><h1>选择题库</h1><div class="subtitle">选择要练习的题库</div></div></div>
+                    ${this.banner({ icon: 'target', title: '选择题库', subtitle: '选择要练习的题库' })}
                     ${
                         banks.length === 0
                             ? `<div class="empty-state">${Icons.inbox}<p>暂无题库</p></div>`
@@ -745,7 +766,7 @@ const App = {
         try {
             const bank = await API.getBank(bankId);
             c.innerHTML = `
-                <div class="page-header"><div><h1>练习设置</h1><div class="subtitle">${esc(bank.name)}</div></div></div>
+                ${this.banner({ icon: 'target', title: '练习设置', subtitle: bank.name })}
                 <div class="card"><div class="card-body">
                     <form id="practice-form">
                         <div class="form-row">
@@ -1002,7 +1023,7 @@ const App = {
         const offset = circumference - (pct / 100) * circumference;
 
         c.innerHTML = `
-            <div class="page-header"><div><h1>练习结果</h1></div></div>
+            ${this.banner({ icon: 'circle-check', title: '练习结果', subtitle: '本次练习完成情况' })}
             <div class="result-container">
                 <div class="result-hero">
                     <div class="result-ring">
@@ -1055,14 +1076,14 @@ const App = {
         try {
             const records = await API.getWrongBook();
             c.innerHTML = `
-                <div class="page-header">
-                    <div><h1>错题本</h1><div class="subtitle">共 ${records.length} 道错题</div></div>
-                    ${
-                        records.length > 0
-                            ? `<div class="header-actions"><button class="btn btn-primary" id="btn-wrong-practice">练习错题</button></div>`
-                            : ''
-                    }
-                </div>
+                ${this.banner({
+                    icon: 'circle-x',
+                    title: '错题本',
+                    subtitle: `共 ${records.length} 道错题`,
+                    actions: records.length > 0
+                        ? `<button class="btn btn-primary" id="btn-wrong-practice">练习错题</button>`
+                        : '',
+                })}
                 <div class="card"><div class="card-body">
                     ${
                         records.length === 0
@@ -1139,7 +1160,7 @@ const App = {
             const totalPages = Math.max(1, Math.ceil(data.total / data.per_page));
 
             c.innerHTML = `
-                <div class="page-header"><div><h1>练习记录</h1><div class="subtitle">共 ${data.total} 条记录</div></div></div>
+                ${this.banner({ icon: 'file-text', title: '练习记录', subtitle: `共 ${data.total} 条记录` })}
                 <div class="card"><div class="card-body">
                     ${
                         data.sessions.length === 0
@@ -1218,10 +1239,12 @@ const App = {
                 const statusCls = unanswered ? 'unanswered' : a.is_correct ? 'correct' : 'wrong';
 
                 c.innerHTML = `
-                    <div class="page-header">
-                        <div><h1>练习详情</h1></div>
-                        <button class="btn btn-secondary" id="btn-back">${Icons['arrow-left']} 返回列表</button>
-                    </div>
+                    ${this.banner({
+                        icon: 'list-checks',
+                        title: '练习详情',
+                        subtitle: `${data.session.bank_name} · ${data.session.submitted_at}`,
+                        actions: `<button class="btn btn-secondary" id="btn-back">${Icons['arrow-left']} 返回列表</button>`,
+                    })}
                     <div class="session-info">
                         <div class="session-info-item"><div class="session-info-label">练习时间</div><div class="session-info-value tnum">${esc(data.session.submitted_at)}</div></div>
                         <div class="session-info-item"><div class="session-info-label">题库</div><div class="session-info-value">${esc(data.session.bank_name)}</div></div>
@@ -1317,7 +1340,7 @@ const App = {
     async loadImport() {
         const c = document.getElementById('page-container');
         c.innerHTML = `
-            <div class="page-header"><div><h1>导入题库</h1><div class="subtitle">支持 JSON 文件或直接粘贴 JSON 数据</div></div></div>
+            ${this.banner({ icon: 'upload', title: '导入题库', subtitle: '支持 JSON 文件或直接粘贴 JSON 数据' })}
             <div class="card"><div class="card-body">
                 <form id="import-form">
                     <div class="form-group">
@@ -1449,10 +1472,12 @@ const App = {
         try {
             const users = await API.getUsers();
             c.innerHTML = `
-                <div class="page-header">
-                    <div><h1>用户管理</h1><div class="subtitle">共 ${users.length} 个用户</div></div>
-                    <div class="header-actions"><button class="btn btn-primary" id="btn-add-user">${Icons['user-plus']} 添加用户</button></div>
-                </div>
+                ${this.banner({
+                    icon: 'users',
+                    title: '用户管理',
+                    subtitle: `共 ${users.length} 个用户`,
+                    actions: `<button class="btn btn-primary" id="btn-add-user">${Icons['user-plus']} 添加用户</button>`,
+                })}
                 <div class="card"><div class="card-body">
                     <div class="table-wrap"><table class="table">
                         <thead><tr><th>ID</th><th>用户名</th><th>显示名</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead>
@@ -1542,7 +1567,7 @@ const App = {
         const c = document.getElementById('page-container');
         const u = this.currentUser;
         c.innerHTML = `
-            <div class="page-header"><div><h1>个人设置</h1></div></div>
+            ${this.banner({ icon: 'user', title: '个人设置', subtitle: '账号信息与登录密码' })}
             <div class="card"><div class="card-body">
                 <form id="profile-form">
                     <div class="form-group">
@@ -1631,6 +1656,7 @@ const App = {
 
     load404() {
         document.getElementById('page-container').innerHTML = `
+            ${this.banner({ icon: 'help-circle', title: '页面不存在', subtitle: '你访问的地址没有对应的内容' })}
             <div class="error-page">
                 <div class="error-page-code">404</div>
                 <div class="error-page-text">页面不存在</div>
