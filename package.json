@@ -14,9 +14,7 @@
     "db:create": "wrangler d1 create shuatibao",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "seed:generate": "node worker/scripts/make-seed.mjs",
-    "seed:local": "wrangler d1 execute DB --local --file=worker/migrations/0002_seed.sql",
-    "seed:remote": "wrangler d1 execute DB --remote --file=worker/migrations/0002_seed.sql",
+    "db:seed:generate": "node worker/scripts/make-seed.mjs",
     "icons": "node tools/build-icons.mjs"
   },
   "dependencies": {
