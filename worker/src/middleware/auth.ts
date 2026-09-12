@@ -62,8 +62,13 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  * 主防线是 Cookie 的 SameSite=Lax（跨站 POST 不携带 Cookie）；
  * 这里再加两道：
  *   1. Origin 头若存在，必须与请求 Host 同源
- *   2. 写操作必须声明 Content-Type: application/json
- *      —— 跨站的简单表单请求无法伪造该类型，会触发预检
+ *   2. **带请求体**的写操作必须声明 Content-Type: application/json
+ *      —— 跨站的简单表单请求只能发 form 类型，会被这一条挡下；
+ *      而 application/json 属于非简单类型，跨站发它会先触发预检
+ *
+ * 注意第 2 条只在「确实有请求体」时生效：DELETE、无体的 PUT/POST
+ * 本来就不携带任何参数，强行要求 Content-Type 只会让正常调用失败，
+ * 却换不来任何额外安全性（无体请求无法携带要伪造的参数）。
  *
  * 旧版 config.php 无条件下发 `Access-Control-Allow-Origin: *`，
  * 且放任 X-User-Id 头但代码从未使用；本架构同源部署，不需要任何 CORS 头。
@@ -88,9 +93,16 @@ export const csrfGuard: MiddlewareHandler<AppBindings> = async (c, next) => {
     }
   }
 
-  const contentType = c.req.header('Content-Type') ?? '';
-  if (!contentType.toLowerCase().includes('application/json')) {
-    throw forbidden('写操作必须使用 application/json', 'UNSUPPORTED_MEDIA_TYPE');
+  const contentLength = c.req.header('Content-Length');
+  const transferEncoding = c.req.header('Transfer-Encoding');
+  const hasBody =
+    (contentLength !== undefined && contentLength !== '0') || transferEncoding !== undefined;
+
+  if (hasBody) {
+    const contentType = c.req.header('Content-Type') ?? '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      throw forbidden('写操作必须使用 application/json', 'UNSUPPORTED_MEDIA_TYPE');
+    }
   }
 
   await next();

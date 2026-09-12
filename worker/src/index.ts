@@ -14,7 +14,15 @@ import { ApiError } from './lib/json';
 import { nowStamp } from './lib/time';
 import { loadSession } from './middleware/auth';
 import { authRoutes } from './routes/auth';
+import { bankRoutes } from './routes/banks';
+import { dashboardRoutes } from './routes/dashboard';
+import { importRoutes } from './routes/import';
+import { practiceRoutes } from './routes/practice';
+import { questionRoutes } from './routes/questions';
+import { recordRoutes } from './routes/records';
+import { sessionRoutes } from './routes/sessions';
 import { userRoutes } from './routes/users';
+import { wrongBookRoutes } from './routes/wrongbook';
 
 const app = new Hono<AppBindings>();
 
@@ -32,6 +40,14 @@ app.get('/api/health', (c) =>
 );
 
 app.route('/api/auth', authRoutes);
+app.route('/api/banks', bankRoutes);
+app.route('/api/questions', questionRoutes);
+app.route('/api/practice', practiceRoutes);
+app.route('/api/sessions', sessionRoutes);
+app.route('/api/wrongbook', wrongBookRoutes);
+app.route('/api/dashboard', dashboardRoutes);
+app.route('/api/records', recordRoutes);
+app.route('/api/import', importRoutes);
 app.route('/api/users', userRoutes);
 
 // ── 未匹配的路径 ──────────────────────────────────────────
