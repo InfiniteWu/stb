@@ -812,9 +812,10 @@ textarea {
 
 /* 已答：品牌浅底 + 浅边框，作为「进度」态，区别于「当前」选中态 */
 .m-sheet-btn.answered {
-    background: var(--brand-50);
-    border-color: var(--brand-200);
-    color: var(--brand-800);
+    /* 与桌面端同一语义：已答＝品牌色的灰度色，三级层次一致 */
+    background: var(--brand-muted);
+    border-color: var(--brand-muted);
+    color: var(--ink-900);
 }
 
 /* 当前题 = 选中态 */
