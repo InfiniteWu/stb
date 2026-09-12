@@ -152,25 +152,40 @@ textarea {
  * 需要分栏的区块（.m-stats / .m-config-row）自行再声明 12 列并按 span 分配。
  * row-gap 统一提供 16px 纵向节奏，因此下面用 #page.m-page > * 归零
  * 直接子元素的外边距，避免与 m-mt-* / m-mb-* 工具类叠加成双倍间距。 */
+/* 滚动容器。
+ *
+ * 这里曾是 display: grid，导致「我的」页出现两个连在一起的 bug：
+ *   1. 网格行轨道被压缩 —— 密码卡内容 263px，行高却只有 223px，
+ *      多出的 40px 被 .m-card 的 overflow:hidden 裁掉，
+ *      表现为「修改密码按钮被截断、和退出登录叠在一起」；
+ *   2. 页面无法滚动 —— 内容被压进一屏内，scrollHeight 等于 clientHeight，
+ *      用户既看不到被裁的部分，也拖不动。
+ *
+ * 而那个网格实际上是多余的：所有直接子元素都是 grid-column: 1 / -1，
+ * 12 栅格在这里只贡献了纵向间距。需要跨列布局的 .m-stats、.m-sheet-grid、
+ * .m-config-row 都各自声明了自己的网格，不依赖父级。
+ *
+ * 改为 flex 列 + gap：纵向节奏不变，同时用 flex-shrink: 0 明确禁止压缩。
+ * min-height: 0 是必需的另一半 —— flex 子项默认 min-height: auto 会被内容
+ * 撑开而不滚动，超出部分会被 #app 的 overflow: hidden 裁掉。 */
 .m-page {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     padding: var(--space-4);
     padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-4));
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    column-gap: var(--m-gutter);
-    row-gap: var(--m-gutter);
-    align-content: start;
+    display: flex;
+    flex-direction: column;
+    gap: var(--m-gutter);
 }
 
 .m-page > * {
-    grid-column: 1 / -1;
+    flex-shrink: 0;
 }
 
-/* 权重高于工具类和 .m-card + .m-card，确保行间距只由 row-gap 提供一次 */
+/* 权重高于工具类和 .m-card + .m-card，确保行间距只由 gap 提供一次 */
 #page.m-page > * {
     margin-top: 0;
     margin-bottom: 0;
