@@ -191,6 +191,12 @@ textarea {
     margin-bottom: 0;
 }
 
+/* 答题页底部有固定提交栏，需补足其高度：
+   按钮 48 + 提交栏上下内边距 24 + 与内容的间隙 16 = 88，再加安全区 */
+.m-page--with-submit {
+    padding-bottom: calc(var(--space-12) + var(--space-10) + var(--safe-bottom));
+}
+
 /* ═══════════════ 四、底部标签栏 ═══════════════ */
 .m-tabbar {
     position: fixed;
@@ -717,6 +723,28 @@ textarea {
     padding: 0 var(--space-2);
     font-size: 14px;
     white-space: nowrap;
+}
+
+/* ── 提交栏 ──
+ * 独占一行、固定在屏幕底部，随内容滚动始终可点。
+ * 定位方式与 .m-drawer 一致：fixed + 居中 + max-width，
+ * 这样在平板等宽于 750px 的视口上也能与 #app 对齐而不溢出。
+ * z-index 200 低于答题卡抽屉（300），抽屉打开时提交栏被其遮住。 */
+.m-submit-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 750px;
+    z-index: 200;
+    padding: var(--space-3) var(--space-4) calc(var(--space-3) + var(--safe-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+}
+
+.m-submit-bar .m-btn {
+    width: 100%;
 }
 
 /* ═══════════════ 十二、答题卡抽屉 ═══════════════ */

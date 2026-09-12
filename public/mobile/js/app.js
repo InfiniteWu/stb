@@ -104,6 +104,7 @@ const App = {
         });
 
         page.style.padding = '';
+        page.classList.remove('m-page--with-submit');
 
         if (path === '/' || path === '') this.renderDashboard(page, title);
         else if (path === '/login') this.renderLogin(page, header);
@@ -377,6 +378,8 @@ const App = {
     renderPracticeDo(page, titleEl) {
         titleEl.textContent = '答题';
         document.getElementById('tabbar').style.display = 'none';
+        // 提交按钮固定在屏幕底部，页面需相应多留出底部空间
+        page.classList.add('m-page--with-submit');
 
         const data = this.practiceData;
         if (!data || !data.questions || !data.questions.length) {
@@ -425,7 +428,9 @@ const App = {
                     <button class="m-btn m-btn-secondary" id="btn-prev" ${state.idx === 0 ? 'disabled' : ''}>上一题</button>
                     <button class="m-btn m-btn-ghost" id="btn-dontknow">不会</button>
                     <button class="m-btn m-btn-secondary" id="btn-next" ${state.idx === total - 1 ? 'disabled' : ''}>下一题</button>
-                    <button class="m-btn m-btn-primary m-btn-submit" id="btn-submit">提交</button>
+                </div>
+                <div class="m-submit-bar">
+                    <button class="m-btn m-btn-primary m-btn-submit" id="btn-submit">提交试卷</button>
                 </div>`;
 
             page.querySelectorAll('.m-option').forEach((opt) => {
