@@ -12,7 +12,8 @@ ini_set('log_errors', 1);
 date_default_timezone_set('Asia/Shanghai');
 
 // 数据库路径
-define('DB_PATH', dirname(__DIR__) . '/data/shuatibao.db');
+// 归档后目录结构为 legacy/{php/api,data}/，故上溯两层指向 legacy/data/。
+define('DB_PATH', dirname(__DIR__, 2) . '/data/shuatibao.db');
 
 // Session 配置
 define('SESSION_LIFETIME', 86400 * 7); // 7天

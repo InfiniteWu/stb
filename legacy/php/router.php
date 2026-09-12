@@ -8,7 +8,14 @@
  * 导致目录穿越 —— /../data/shuatibao.db 可下载整个数据库（含密码哈希），
  * /../api/auth.php 可读取 PHP 源码。
  * 现改为 realpath() 前缀校验 + 扩展名白名单。
+ *
+ * 归档说明 (2026-09-12)：本文件已随 PHP 后端整体移入 legacy/php/。
+ * public/ 静态资源仍留在仓库根，因此这里显式指回，保证 PHP 版在过渡期内
+ * 依然可直接 `./run.sh` 启动。新架构见 worker/。
  */
+
+// public/ 位于仓库根（与 legacy/ 分离）
+define('PUBLIC_DIR', dirname(__DIR__, 2) . '/public');
 
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 
@@ -91,12 +98,12 @@ if (preg_match('#^/api(/|$)#', $uri)) {
 // 移动端页面与静态文件
 if (preg_match('#^/mobile(/|$)#', $uri)) {
     $mobileRelative = preg_replace('#^/mobile#', '', $uri);
-    if (serveStaticFile(__DIR__ . '/public/mobile', $mobileRelative)) {
+    if (serveStaticFile(PUBLIC_DIR . '/mobile', $mobileRelative)) {
         return true;
     }
     denyIfBlocked();
 
-    $mobileFile = __DIR__ . '/public/mobile/index.html';
+    $mobileFile = PUBLIC_DIR . '/mobile/index.html';
     if (file_exists($mobileFile)) {
         header('Content-Type: text/html; charset=utf-8');
         readfile($mobileFile);
@@ -106,14 +113,14 @@ if (preg_match('#^/mobile(/|$)#', $uri)) {
 
 // 静态文件 (从 public/ 目录提供)
 if ($uri !== '/') {
-    if (serveStaticFile(__DIR__ . '/public', $uri)) {
+    if (serveStaticFile(PUBLIC_DIR, $uri)) {
         return true;
     }
     denyIfBlocked();
 }
 
 // SPA fallback - 返回 index.html
-$indexFile = __DIR__ . '/public/index.html';
+$indexFile = PUBLIC_DIR . '/index.html';
 if (file_exists($indexFile)) {
     header('Content-Type: text/html; charset=utf-8');
     readfile($indexFile);

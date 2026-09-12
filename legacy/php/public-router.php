@@ -2,7 +2,7 @@
 /**
  * public/ 目录的 PHP 内置服务器路由器
  *
- * 用法: php -S 127.0.0.1:2026 public/router.php   （从仓库根目录启动，docroot = 仓库根）
+ * 用法: php -S 127.0.0.1:2026 legacy/php/public-router.php
  * 注意: run.sh 使用的是根目录的 router.php，本文件并非默认入口，但仍须保持安全。
  *
  * 安全修复 (2026-09-12)：
@@ -17,12 +17,15 @@
  *      彻底切断内置服务器对原始路径的二次解析。
  */
 
+// public/ 位于仓库根（与 legacy/ 分离）
+define('PUBLIC_DIR', dirname(__DIR__, 2) . '/public');
+
 $uri = $_SERVER['REQUEST_URI'];
 $path = parse_url($uri, PHP_URL_PATH);
 
 // API routes
 if (strpos($path, '/api/') === 0) {
-    require __DIR__ . '/../api/index.php';
+    require __DIR__ . '/api/index.php';
     exit;
 }
 
@@ -45,8 +48,8 @@ $mimeTypes = [
     'txt'   => 'text/plain; charset=utf-8',
 ];
 
-$base   = realpath(__DIR__);
-$target = realpath(__DIR__ . '/' . ltrim(urldecode($path), '/'));
+$base   = realpath(PUBLIC_DIR);
+$target = realpath(PUBLIC_DIR . '/' . ltrim(urldecode($path), '/'));
 
 // 越权路径：明确拒绝，且不得回落到任何 fallback。
 if ($target !== false
@@ -86,4 +89,4 @@ if ($target !== false && is_dir($target)) {
 
 // SPA fallback: serve root index.html
 header('Content-Type: text/html; charset=utf-8');
-readfile(__DIR__ . '/index.html');
+readfile(PUBLIC_DIR . '/index.html');
