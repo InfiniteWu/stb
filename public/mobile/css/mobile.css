@@ -191,9 +191,14 @@ textarea {
     margin-bottom: 0;
 }
 
-/* 答题页底部有固定提交栏，需补足其高度：
-   按钮 48 + 提交栏上下内边距 24 + 与内容的间隙 16 = 88，再加安全区 */
+/* 底部有常驻操作区时，页面需补足其高度，避免内容被遮住。
+   两行版（答题页）：按钮 48×2 + 行间距 8 + 上下内边距 24 + 与内容间隙 16 = 144 */
 .m-page--with-submit {
+    padding-bottom: calc(var(--space-12) * 2 + var(--space-10) + var(--safe-bottom));
+}
+
+/* 一行版（详情页）：按钮 48 + 上下内边距 24 + 与内容间隙 16 = 88 */
+.m-page--with-actions {
     padding-bottom: calc(var(--space-12) + var(--space-10) + var(--safe-bottom));
 }
 
@@ -399,9 +404,15 @@ textarea {
     color: var(--warning);
 }
 
+/* 禁用态用明确的灰色表达，而不是整体降透明度 ——
+   后者会把品牌色按钮变成「淡青色」，看上去仍像可点，
+   而用户要的是「第一题时上一题灰掉」这种一目了然的不可用状态。 */
 .m-btn:disabled {
-    opacity: 0.4;
+    background: var(--surface-sunken);
+    color: var(--ink-500);
+    border-color: transparent;
     pointer-events: none;
+    cursor: not-allowed;
 }
 
 /* ═══════════════ 七、卡片 ═══════════════ */
@@ -725,12 +736,13 @@ textarea {
     white-space: nowrap;
 }
 
-/* ── 提交栏 ──
- * 独占一行、固定在屏幕底部，随内容滚动始终可点。
+/* ── 常驻操作区 ──
+ * 固定在屏幕底部，内部可放一行或多行操作。
+ * 答题页是「导航三键 + 提交键」两行；详情页只有一行导航。
  * 定位方式与 .m-drawer 一致：fixed + 居中 + max-width，
- * 这样在平板等宽于 750px 的视口上也能与 #app 对齐而不溢出。
- * z-index 200 低于答题卡抽屉（300），抽屉打开时提交栏被其遮住。 */
-.m-submit-bar {
+ * 这样在宽于 750px 的视口上也能与 #app 对齐而不溢出。
+ * z-index 200 低于答题卡抽屉（300），抽屉打开时操作区被其遮住。 */
+.m-action-area {
     position: fixed;
     bottom: 0;
     left: 50%;
@@ -738,13 +750,26 @@ textarea {
     width: 100%;
     max-width: 750px;
     z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
     padding: var(--space-3) var(--space-4) calc(var(--space-3) + var(--safe-bottom));
     background: var(--surface);
     border-top: 1px solid var(--border);
 }
 
-.m-submit-bar .m-btn {
+/* 操作区内的行不再需要自己的上下内边距 */
+.m-action-area .m-practice-bar {
+    padding: 0;
+}
+
+.m-action-area > .m-btn {
     width: 100%;
+}
+
+/* 占位：让页面内容不被固定操作区遮住 */
+.m-action-spacer {
+    flex-shrink: 0;
 }
 
 /* ═══════════════ 十二、答题卡抽屉 ═══════════════ */
@@ -929,6 +954,16 @@ textarea {
 .m-sheet-dot.answered {
     background: var(--brand-50);
     border-color: var(--brand-200);
+}
+
+.m-sheet-dot.correct {
+    background: var(--success-soft);
+    border-color: var(--success);
+}
+
+.m-sheet-dot.wrong {
+    background: var(--warning-soft);
+    border-color: var(--warning);
 }
 
 .m-sheet-footer {

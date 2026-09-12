@@ -85,13 +85,17 @@ const App = {
         const noHeader = path === '/login';
         header.style.display = noHeader ? 'none' : 'flex';
 
+        // 详情页此前被排除在「显示返回箭头」之外，导致进去后无法中途退出，
+        // 只能一路翻到最后一题才有返回按钮。现在恢复箭头。
         const noBack =
-            ['/', '/login', '/practice/pick', '/wrongbook', '/sessions', '/profile'].indexOf(path) >= 0 ||
-            path.startsWith('/sessions/');
+            ['/', '/login', '/practice/pick', '/wrongbook', '/sessions', '/profile'].indexOf(path) >= 0;
         back.style.display = noBack ? 'none' : '';
 
         back.onclick = () => {
-            if (path === '/practice/do' || path === '/practice/result' || path.startsWith('/sessions/')) {
+            if (path.startsWith('/sessions/')) {
+                // 回练习记录列表，而不是退回首页
+                window.location.hash = '#/sessions';
+            } else if (path === '/practice/do' || path === '/practice/result') {
                 window.location.hash = '#/';
             } else {
                 window.history.back();
@@ -105,6 +109,7 @@ const App = {
 
         page.style.padding = '';
         page.classList.remove('m-page--with-submit');
+        page.classList.remove('m-page--with-actions');
 
         if (path === '/' || path === '') this.renderDashboard(page, title);
         else if (path === '/login') this.renderLogin(page, header);
@@ -424,12 +429,12 @@ const App = {
                             .join('')}
                     </div>
                 </div>
-                <div class="m-practice-bar">
-                    <button class="m-btn m-btn-secondary" id="btn-prev" ${state.idx === 0 ? 'disabled' : ''}>上一题</button>
-                    <button class="m-btn m-btn-ghost" id="btn-dontknow">不会</button>
-                    <button class="m-btn m-btn-secondary" id="btn-next" ${state.idx === total - 1 ? 'disabled' : ''}>下一题</button>
-                </div>
-                <div class="m-submit-bar">
+                <div class="m-action-area">
+                    <div class="m-practice-bar">
+                        <button class="m-btn m-btn-secondary" id="btn-prev" ${state.idx === 0 ? 'disabled' : ''}>上一题</button>
+                        <button class="m-btn m-btn-ghost" id="btn-dontknow">不会</button>
+                        <button class="m-btn m-btn-secondary" id="btn-next" ${state.idx === total - 1 ? 'disabled' : ''}>下一题</button>
+                    </div>
                     <button class="m-btn m-btn-primary m-btn-submit" id="btn-submit">提交试卷</button>
                 </div>`;
 
@@ -559,6 +564,84 @@ const App = {
         drawer.querySelector('#drawer-submit').addEventListener('click', () => {
             close();
             this.submitPractice(data, answers);
+        });
+
+        requestAnimationFrame(() => {
+            mask.classList.add('open');
+            drawer.classList.add('open');
+        });
+    },
+
+    /**
+     * 详情页的答题卡抽屉。
+     *
+     * 与答题时的答题卡不同：这里按「正确 / 错误 / 未答」着色，
+     * 目的是快速定位错题 —— 这正是用户反馈缺失的能力。
+     */
+    showReviewSheet(answers, total, currentIdx, onJump) {
+        let wrongCount = 0;
+        let correctCount = 0;
+        let unansweredCount = 0;
+
+        let navHtml = '';
+        for (let i = 0; i < total; i++) {
+            const a = answers[i];
+            const unanswered = a.is_correct === null;
+            let cls = 'm-sheet-btn';
+            if (unanswered) {
+                unansweredCount++;
+                cls += ' unanswered';
+            } else if (a.is_correct) {
+                correctCount++;
+                cls += ' correct';
+            } else {
+                wrongCount++;
+                cls += ' wrong';
+            }
+            if (i === currentIdx) cls += ' current';
+            navHtml += `<button class="${cls}" data-idx="${i}">${i + 1}</button>`;
+        }
+
+        const mask = document.createElement('div');
+        mask.className = 'm-drawer-mask';
+        const drawer = document.createElement('div');
+        drawer.className = 'm-drawer';
+        drawer.innerHTML = `
+            <div class="m-drawer-header">
+                <span class="m-drawer-title">答题卡</span>
+                <button class="m-drawer-close" aria-label="关闭"><span data-icon="x"></span></button>
+            </div>
+            <div class="m-drawer-body">
+                <div class="m-sheet-legend">
+                    <span class="m-sheet-legend-item"><span class="m-sheet-dot current"></span>当前</span>
+                    <span class="m-sheet-legend-item"><span class="m-sheet-dot correct"></span>正确 ${correctCount}</span>
+                    <span class="m-sheet-legend-item"><span class="m-sheet-dot wrong"></span>错误 ${wrongCount}</span>
+                    <span class="m-sheet-legend-item"><span class="m-sheet-dot"></span>未答 ${unansweredCount}</span>
+                </div>
+                <div class="m-sheet-grid">${navHtml}</div>
+            </div>`;
+
+        document.body.appendChild(mask);
+        document.body.appendChild(drawer);
+        this.hydrateIcons(drawer);
+
+        const close = () => {
+            mask.classList.remove('open');
+            drawer.classList.remove('open');
+            setTimeout(() => {
+                mask.remove();
+                drawer.remove();
+            }, 300);
+        };
+
+        mask.addEventListener('click', close);
+        drawer.querySelector('.m-drawer-close').addEventListener('click', close);
+        drawer.querySelectorAll('.m-sheet-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const target = parseInt(btn.dataset.idx, 10);
+                close();
+                onJump(target);
+            });
         });
 
         requestAnimationFrame(() => {
@@ -781,6 +864,8 @@ const App = {
 
     async renderSessionDetail(id, page, titleEl) {
         titleEl.textContent = '答题详情';
+        // 底部有常驻的上一题/下一题操作区，页面需相应留白
+        page.classList.add('m-page--with-actions');
         page.innerHTML = '<div class="m-loading"><div class="m-spinner"></div>加载中...</div>';
         try {
             const data = await API.getSession(id);
@@ -799,6 +884,8 @@ const App = {
                 return Array.isArray(v) ? v : [v];
             };
 
+            const self = this;
+
             const renderDetail = () => {
                 const a = answers[idx];
                 const correctIdxs = toIndexArray(a.correct_answer);
@@ -810,7 +897,7 @@ const App = {
                 page.innerHTML = `
                     <div class="m-practice-header">
                         <span class="tnum">第 ${idx + 1} / ${total} 题</span>
-                        <span class="m-badge m-badge-${statusCls}">${statusText}</span>
+                        <span class="m-link" id="show-review-sheet">答题卡</span>
                     </div>
                     <div class="m-progress-bar"><div class="m-progress-fill" style="width:${((idx + 1) / total) * 100}%"></div></div>
                     <div class="m-review-card ${statusCls}">
@@ -827,9 +914,11 @@ const App = {
                             .join('')}
                         ${a.explanation ? `<div class="m-review-explanation"><strong>解析：</strong>${esc(a.explanation)}</div>` : ''}
                     </div>
-                    <div class="m-practice-bar">
-                        <button class="m-btn m-btn-secondary" id="det-prev" ${idx === 0 ? 'disabled' : ''}>上一题</button>
-                        <button class="m-btn m-btn-primary" id="det-next">${idx === total - 1 ? '返回' : '下一题'}</button>
+                    <div class="m-action-area">
+                        <div class="m-practice-bar">
+                            <button class="m-btn m-btn-primary" id="det-prev" ${idx === 0 ? 'disabled' : ''}>上一题</button>
+                            <button class="m-btn m-btn-primary" id="det-next" ${idx === total - 1 ? 'disabled' : ''}>下一题</button>
+                        </div>
                     </div>`;
 
                 document.getElementById('det-prev').addEventListener('click', () => {
@@ -842,9 +931,13 @@ const App = {
                     if (idx < total - 1) {
                         idx++;
                         renderDetail();
-                    } else {
-                        window.location.hash = '#/sessions';
                     }
+                });
+                document.getElementById('show-review-sheet').addEventListener('click', () => {
+                    self.showReviewSheet(answers, total, idx, (target) => {
+                        idx = target;
+                        renderDetail();
+                    });
                 });
             };
 
