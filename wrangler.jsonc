@@ -31,9 +31,15 @@
     }
   ],
 
-  // ⚠️ 部署前取消注释并替换为你的自有域名。
-  // 不使用 *.workers.dev（本机 DNS 被污染，且国内不可达）。
-  // "routes": [{ "pattern": "刷题宝.example.com", "custom_domain": true }],
+  // 自有域名。写进配置而不是只靠控制台，否则下次部署会丢失绑定。
+  // custom_domain 由 Cloudflare 自动签发并续期证书，无需自行管理 DNS 记录。
+  "routes": [{ "pattern": "stb.jorinedu.top", "custom_domain": true }],
+
+  // 关闭 *.workers.dev：本项目的访问入口只有上面的自有域名。
+  // 该域名在国内 DNS 被污染、无法直连，留着既不实用又白白多一个入口。
+  "workers_dev": false,
+  // 预览 URL 同理关闭，避免每次部署产生一批可匿名访问的临时地址。
+  "preview_urls": false,
 
   // 这里放的是**默认（生产）**取值。
   // 本地开发由 .dev.vars 覆盖为 development（见 .dev.vars.example）。

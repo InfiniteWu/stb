@@ -50,11 +50,24 @@ legacy/                 迁移前的 PHP 实现与旧数据库快照
 
 ## 部署
 
-前置：Cloudflare 账号、一个已接入 Cloudflare 的自有域名。
+**当前线上地址：https://stb.jorinedu.top**（`*.workers.dev` 已关闭，访问入口只有自有域名）
+
+已完成的部署状态：
+
+| 项 | 值 |
+|---|---|
+| Worker | `shuatibao`，启动约 6 ms |
+| D1 | `shuatibao` / `4cad2ce1-53fc-4d43-b017-1122e50fd07c`，区域 **APAC** |
+| 自定义域名 | `stb.jorinedu.top`（`custom_domain`，证书自动签发续期） |
+| 密钥 | `SERVER_KDF_SECRET` 已通过 `wrangler secret put` 设置 |
+| 数据 | 与旧库逐项一致：题目 1569 / 题库 2 / 用户 2 / 错题 5 / 练习 4 |
+
+从零重建的完整流程：
 
 ```bash
 npx wrangler login                                  # 交互式授权
-npx wrangler d1 create shuatibao                    # 把返回的 database_id 填入 wrangler.jsonc
+npx wrangler d1 create shuatibao --location apac    # 默认会落在美西，显式指定亚太
+# 把返回的 database_id 填入 wrangler.jsonc，并确认 routes 指向你的域名
 npx wrangler secret put SERVER_KDF_SECRET           # 用于派生假盐，防止用户名枚举
 
 npm run db:migrate:remote                           # 建表 + 导入既有数据
@@ -64,15 +77,16 @@ npx wrangler d1 execute DB --remote --file=/tmp/pw.sql
 npx wrangler deploy
 ```
 
-部署前请把 `wrangler.jsonc` 中的 `routes` 取消注释并替换为你的域名，同时替换 `d1_databases[0].database_id`。
-
 冒烟检查：
 
 ```bash
 curl https://<你的域名>/api/health
+node tools/smoke-auth.mjs https://<你的域名> admin '你的口令'
+node tools/smoke-api.mjs  https://<你的域名> admin '你的口令'
 ```
 
-**不要使用 `*.workers.dev`** —— 该域名在国内不可达（本机实测 DNS 被污染）。
+> 本机 DNS 对 `*.workers.dev` 有污染，但自有域名解析正常。若需经代理访问，Node 侧需
+> `NODE_USE_ENV_PROXY=1`（Node 的 fetch 默认不读 `http_proxy`）。
 
 ---
 
