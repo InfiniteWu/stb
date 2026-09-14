@@ -1003,6 +1003,10 @@ const App = {
                             <label for="p-newpwd">新密码</label>
                             <input type="password" id="p-newpwd" class="m-input" autocomplete="new-password">
                         </div>
+                        <div class="m-field">
+                            <label for="p-confirmpwd">确认新密码</label>
+                            <input type="password" id="p-confirmpwd" class="m-input" autocomplete="new-password">
+                        </div>
                         <button type="submit" class="m-btn m-btn-primary" id="btn-change-pw">修改密码</button>
                     </form>
                 </div>
@@ -1026,9 +1030,22 @@ const App = {
             e.preventDefault();
             const o = document.getElementById('p-oldpwd').value;
             const n = document.getElementById('p-newpwd').value;
-            if (!o || !n) return;
+            const c = document.getElementById('p-confirmpwd').value;
+            if (!o || !n || !c) {
+                alert('请填写完整');
+                return;
+            }
             if (n.length < 6) {
                 alert('新密码至少 6 位');
+                return;
+            }
+            // 二次输入校验：服务端只收到拉伸后的值，无法分辨新密码是打错还是有意为之，
+            // 一旦写错就会把原口令直接覆盖掉，所以必须在这里拦住。
+            if (n !== c) {
+                alert('两次输入的新密码不一致，请重新输入');
+                const confirmInput = document.getElementById('p-confirmpwd');
+                confirmInput.value = '';
+                confirmInput.focus();
                 return;
             }
 
@@ -1040,6 +1057,7 @@ const App = {
                 alert('修改成功');
                 document.getElementById('p-oldpwd').value = '';
                 document.getElementById('p-newpwd').value = '';
+                document.getElementById('p-confirmpwd').value = '';
             } catch (err) {
                 alert(err.message);
             } finally {

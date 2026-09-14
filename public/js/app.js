@@ -1522,7 +1522,7 @@ const App = {
         if (!username || !username.trim()) return;
         const displayName = prompt('请输入显示名:', username.trim());
         if (!displayName || !displayName.trim()) return;
-        const password = prompt('请输入密码（至少 6 位）:');
+        const password = this.askNewPassword('请输入密码');
         if (!password) return;
 
         try {
@@ -1538,8 +1538,28 @@ const App = {
         }
     },
 
+    /**
+     * 两次输入新口令，一致才返回；取消或不一致一律返回 null。
+     * 新建用户 / 重置口令与本人改密共用同一套「二次输入」约束。
+     */
+    askNewPassword(title) {
+        const password = prompt(`${title}（至少 6 位）:`);
+        if (!password) return null;
+        if (password.length < 6) {
+            alert('密码至少 6 位');
+            return null;
+        }
+        const again = prompt('请再次输入以确认:', '');
+        if (again === null) return null;
+        if (password !== again) {
+            alert('两次输入不一致，已取消，请重试');
+            return null;
+        }
+        return password;
+    },
+
     async resetPassword(id) {
-        const password = prompt('请输入新密码（至少 6 位）:');
+        const password = this.askNewPassword('请输入新密码');
         if (!password) return;
         try {
             await API.resetPassword(id, password);
@@ -1599,6 +1619,11 @@ const App = {
                         <input type="password" id="new-password" class="form-input" required autocomplete="new-password">
                         <span class="hint">至少 6 位；修改后其它设备将被强制重新登录</span>
                     </div>
+                    <div class="form-group">
+                        <label for="confirm-password">确认新密码</label>
+                        <input type="password" id="confirm-password" class="form-input" required autocomplete="new-password">
+                        <span class="hint">请再次输入新密码，两次必须完全一致</span>
+                    </div>
                     <button type="submit" class="btn btn-primary" id="btn-change-pw">修改密码</button>
                 </form>
             </div></div>
@@ -1626,12 +1651,22 @@ const App = {
             e.preventDefault();
             const oldPwd = document.getElementById('old-password').value;
             const newPwd = document.getElementById('new-password').value;
-            if (!oldPwd || !newPwd) {
+            const confirmPwd = document.getElementById('confirm-password').value;
+            if (!oldPwd || !newPwd || !confirmPwd) {
                 alert('请填写完整');
                 return;
             }
             if (newPwd.length < 6) {
                 alert('新密码至少 6 位');
+                return;
+            }
+            // 二次输入校验：这是防止「新密码打错一个字就把原密码覆盖掉」的唯一机会，
+            // 服务端拿到的只有拉伸后的值，无法分辨是打错还是有意为之。
+            if (newPwd !== confirmPwd) {
+                alert('两次输入的新密码不一致，请重新输入');
+                const confirmInput = document.getElementById('confirm-password');
+                confirmInput.value = '';
+                confirmInput.focus();
                 return;
             }
 
@@ -1645,6 +1680,7 @@ const App = {
                 alert('密码修改成功');
                 document.getElementById('old-password').value = '';
                 document.getElementById('new-password').value = '';
+                document.getElementById('confirm-password').value = '';
             } catch (error) {
                 alert(error.message);
             } finally {
