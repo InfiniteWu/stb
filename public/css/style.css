@@ -677,6 +677,19 @@ input[type="radio"]:focus-visible {
     border-top: 1px solid var(--ink-300);
 }
 
+/* 「退出登录」用了 .btn-block（宽度撑满），而 .btn-block 会顺带把内容居中
+   （justify-content: center），于是图标与文字整体居中，跟正上方同样撑满但
+   左对齐的 .nav-item 错开。这里按 .nav-item 的内容列重新对齐：
+     - flex-start：不再居中
+     - .nav-item 有 2px 边框，其内容起点因此右移 2px，用等宽透明边框补齐
+     - 图标与文字的间距从 .btn 的 space-2 改为 .nav-item 的 space-3
+   这样图标和文字都会与「个人设置」逐列对齐。 */
+.sidebar-footer .btn-block {
+    justify-content: flex-start;
+    border: 2px solid transparent;
+    gap: var(--space-3);
+}
+
 .user-card {
     display: flex;
     align-items: center;
