@@ -14,9 +14,10 @@ import type { AppBindings, UserRow } from '../types';
 import { badRequest, notFound, readJson, tooManyRequests, unauthorized } from '../lib/json';
 import {
   DEFAULT_KDF_ITERATIONS,
-  credentialFromVerifier,
+  credentialFromPayload,
   deriveDecoySalt,
   isRateLimited,
+  parseKdfPayload,
   recordLoginAttempt,
   requireKdfSecret,
   verifyCredential,
@@ -178,26 +179,31 @@ authRoutes.post('/update-profile', csrfGuard, requireLogin, async (c) => {
 
 // ── 修改口令 ─────────────────────────────────────────────────
 //
-// 请求体：{ current_verifier, next: { verifier, iterations? } }
-// 客户端需对旧口令与新口令各做一次拉伸（旧口令的盐取 /challenge）。
+// 请求体：{ current_verifier, next: { salt, iterations, verifier } }
+// 旧口令用 /challenge 下发的盐拉伸；新口令由客户端自选盐拉伸
+// （KDF.makeKdfPayload），因此 next.salt 必须原样入库。
+//
+// 曾经的写法是 credentialFromVerifier(nextVerifier, nextIterations)，
+// 它会**另生成一个服务端盐**再入库，把客户端拉伸新口令时用的盐丢掉。
+// 而登录时 /challenge 下发的是库里的盐，客户端据此重新拉伸得到的值与
+// 入库时那个（用另一个盐算出的）verifier 永不相等 —— 于是「改密成功」
+// 之后该账号再也无法登录，且原口令也已被覆盖，只能靠管理员重置。
+// 与 users.ts 的新建/重置口令保持一致：盐由客户端给出，用
+// credentialFromPayload 入库。
 authRoutes.post('/change-password', csrfGuard, requireLogin, async (c) => {
   const { user, sessionId } = currentAuth(c);
   const body = await readJson<{
     current_verifier?: unknown;
-    next?: { verifier?: unknown; iterations?: unknown };
+    next?: unknown;
   }>(c);
 
   const currentVerifier = typeof body.current_verifier === 'string' ? body.current_verifier : '';
-  const nextVerifier = typeof body.next?.verifier === 'string' ? body.next.verifier : '';
-  const nextIterations =
-    typeof body.next?.iterations === 'number' && body.next.iterations > 0
-      ? Math.floor(body.next.iterations)
-      : DEFAULT_KDF_ITERATIONS;
-
-  if (!currentVerifier || !nextVerifier) {
+  if (!currentVerifier) {
     throw badRequest('请填写完整');
   }
-  if (nextVerifier.length < 16) {
+
+  const payload = parseKdfPayload(body.next);
+  if (!payload) {
     throw badRequest('新密码不合法');
   }
 
@@ -214,7 +220,7 @@ authRoutes.post('/change-password', csrfGuard, requireLogin, async (c) => {
     throw badRequest('原密码错误', 'INVALID_CURRENT_PASSWORD');
   }
 
-  const cred = await credentialFromVerifier(nextVerifier, nextIterations);
+  const cred = await credentialFromPayload(payload);
   await c.env.DB.prepare(
     `UPDATE users SET password_hash = ?, password_algo = ?, kdf_salt = ?, kdf_iterations = ?
      WHERE id = ?`,

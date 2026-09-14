@@ -37,6 +37,58 @@ describe('认证', () => {
         expect(res.setCookie).toBeNull();
     });
 
+    /**
+     * 回归：改密曾用 credentialFromVerifier 入库，它会另生成一个服务端盐，
+     * 把客户端拉伸新口令时用的盐丢掉。登录时 /challenge 下发的是库里的盐，
+     * 客户端据此重新拉伸得到的值与入库值永不相等 —— 改密「成功」之后账号
+     * 再也登不进去，原口令又已被覆盖。这里按登录页的真实流程复现。
+     */
+    it('改密后可以用新口令登录（客户端盐必须原样入库）', async () => {
+        await createUserRow('alice', 'oldpass1');
+
+        const ch0 = await post('/api/auth/challenge', { username: 'alice' });
+        const v0 = await stretch('oldpass1', ch0.data.salt, ch0.data.iterations);
+        const login = await post('/api/auth/login', { username: 'alice', verifier: v0 });
+        expect(login.status).toBe(200);
+        const cookie = login.setCookie!;
+
+        // 旧口令：用服务端下发的盐拉伸
+        const ch1 = await post('/api/auth/challenge', { username: 'alice' });
+        const currentVerifier = await stretch('oldpass1', ch1.data.salt, ch1.data.iterations);
+
+        // 新口令：客户端自选盐拉伸，等价于前端 KDF.makeKdfPayload
+        const nextSalt = btoa(
+            String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))),
+        );
+        const nextIterations = 100_000;
+        const nextVerifier = await stretch('newpass2', nextSalt, nextIterations);
+
+        const changed = await post(
+            '/api/auth/change-password',
+            {
+                current_verifier: currentVerifier,
+                next: { salt: nextSalt, iterations: nextIterations, verifier: nextVerifier },
+            },
+            cookie,
+        );
+        expect(changed.status).toBe(200);
+
+        // 库里的盐必须就是客户端拉伸新口令时用的那个，否则登录必然失败
+        const ch2 = await post('/api/auth/challenge', { username: 'alice' });
+        expect(ch2.data.salt).toBe(nextSalt);
+
+        // 完整重放登录页流程：新口令可登录
+        const v2 = await stretch('newpass2', ch2.data.salt, ch2.data.iterations);
+        const relogin = await post('/api/auth/login', { username: 'alice', verifier: v2 });
+        expect(relogin.status).toBe(200);
+
+        // 旧口令必须失效
+        const ch3 = await post('/api/auth/challenge', { username: 'alice' });
+        const v3 = await stretch('oldpass1', ch3.data.salt, ch3.data.iterations);
+        const oldLogin = await post('/api/auth/login', { username: 'alice', verifier: v3 });
+        expect(oldLogin.status).toBe(401);
+    });
+
     it('未知用户返回确定性假盐（不可用于枚举用户名）', async () => {
         const a = await post('/api/auth/challenge', { username: 'ghost' });
         const b = await post('/api/auth/challenge', { username: 'ghost' });
