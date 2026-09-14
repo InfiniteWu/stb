@@ -10,8 +10,11 @@
  *  1. 保留原始 id，使错题本/作答明细等外键引用保持有效；
  *  2. 用户口令无法迁移 —— 旧的是 PHP bcrypt($2y$12$)，在新架构下
  *     （客户端 PBKDF2 拉伸 + 服务端 HMAC 验签）无法验证。
- *     因此原哈希移入 legacy_password_hash 仅作审计，password_hash 置空、
- *     password_algo 标为 'legacy-bcrypt'，迁移后必须由管理员重置口令；
+ *     password_hash 与 legacy_password_hash 一律置空、password_algo 标为
+ *     'legacy-bcrypt'，迁移后必须由管理员重置口令。
+ *     旧哈希刻意不落盘：它是可离线爆破的真实凭据，而本文件会进入公开仓库
+ *     （bcrypt cost 12 只需约 250ms/次即可穷举弱口令）。需要审计时直接查
+ *     未入 git 的 legacy/data/shuatibao.db；
  *  3. 时间戳原样搬运（旧库已是北京时间字符串，格式与新库一致）；
  *  4. 单条 INSERT 控制在 100 KB 以内（D1 语句长度上限）；
  *  5. 生成前先校验旧数据是否满足新 schema 的 CHECK 约束。
@@ -77,11 +80,12 @@ const TABLES = [
       'password_hash', 'password_algo', 'kdf_salt', 'kdf_iterations',
       'legacy_password_hash',
     ],
-    // 口令无法迁移：原 bcrypt 哈希转入 legacy_password_hash，
-    // password_hash 置空等待管理员重置。
+    // 口令无法迁移：password_hash 与 legacy_password_hash 都置空，
+    // 等待管理员重置。旧 bcrypt 哈希不进种子文件 —— 它可离线爆破，
+    // 而本文件会随公开仓库发布。
     map: (r) => [
       n(r.id), q(r.username), q(r.display_name), q(r.role), q(r.created_at),
-      'NULL', q('legacy-bcrypt'), 'NULL', n(600000), q(r.password_hash),
+      'NULL', q('legacy-bcrypt'), 'NULL', n(600000), 'NULL',
     ],
     source: 'SELECT * FROM users ORDER BY id',
   },
@@ -158,7 +162,7 @@ lines.push('-- 0002_seed.sql —— 由 legacy/data/shuatibao.db 自动生成，
 lines.push(`-- 生成时间: ${new Date().toISOString()}`);
 lines.push('--');
 lines.push('-- 用户口令说明：旧 PHP 版用 bcrypt($2y$12$)，新架构下无法验证，');
-lines.push('-- 原哈希已存入 legacy_password_hash 仅作审计。');
+lines.push('-- 旧哈希一律置空（可离线爆破的真实凭据，不随公开仓库发布）。');
 lines.push("-- 这些账号 password_hash 为空、password_algo='legacy-bcrypt'，");
 lines.push('-- 迁移后必须由管理员重置口令。');
 lines.push('-- ═══════════════════════════════════════════════════════════════');
