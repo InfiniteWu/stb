@@ -498,23 +498,23 @@ const App = {
                 });
             });
 
-            document.getElementById('btn-prev').addEventListener('click', () => {
-                if (state.idx > 0) {
-                    state.idx--;
-                    render();
-                }
-            });
-            document.getElementById('btn-next').addEventListener('click', () => {
-                if (state.idx < total - 1) {
-                    state.idx++;
-                    render();
-                }
-            });
+            /** 切题：dir 为 1 下一题、-1 上一题；能播动画就交给 slideTo */
+            const go = (dir) => {
+                const target = state.idx + dir;
+                if (target < 0 || target >= total) return;
+                state.idx = target;
+                if (self.slideTo(page, dir, render)) return;
+                render();
+            };
+
+            document.getElementById('btn-prev').addEventListener('click', () => go(-1));
+            document.getElementById('btn-next').addEventListener('click', () => go(1));
             /** M6：与桌面端对齐，新增「不会」—— 记为未作答而非答错 */
             document.getElementById('btn-dontknow').addEventListener('click', () => {
                 answers[q.id] = { selected: null };
-                if (state.idx < total - 1) state.idx++;
-                render();
+                // 末题没有下一题可切，但仍要重画以反映「已标记未作答」
+                if (state.idx < total - 1) go(1);
+                else render();
             });
             document.getElementById('btn-submit').addEventListener('click', () => {
                 self.submitPractice(data, answers);
@@ -525,18 +525,8 @@ const App = {
 
             self.enableSwipe(
                 page,
-                () => {
-                    if (state.idx < total - 1) {
-                        state.idx++;
-                        render();
-                    }
-                },
-                () => {
-                    if (state.idx > 0) {
-                        state.idx--;
-                        render();
-                    }
-                }
+                () => go(1), // 左滑 → 下一题
+                () => go(-1) // 右滑 → 上一题
             );
         };
         render();
@@ -748,6 +738,58 @@ const App = {
         el.ontouchcancel = () => {
             tracking = false;
         };
+    },
+
+    /**
+     * 切题过渡：卡片滑出 → 重画 → 新卡片滑入，方向跟随手势。
+     *
+     * dir 为 1 表示下一题（旧卡片向左滑出、新卡片自右滑入），-1 表示上一题。
+     * render() 由调用方提供，负责按当前下标重画页面；本方法会在滑出动画结束后
+     * 才调用它，并给新卡片挂上滑入动画。
+     *
+     * 返回 true 表示已接管（调用方不必再自己 render），false 表示跳过动画、
+     * 调用方应立即 render（例如卡片不存在、或用户偏好减少动效）。
+     *
+     * 只对卡片做 transform：底部 .m-action-area 是 position: fixed，
+     * 祖先一旦有 transform 就会退化成相对该祖先定位，按钮会跟着一起滑。
+     */
+    slideTo(page, dir, render) {
+        const CARD = '.m-question-card, .m-review-card';
+        const OUT_MS = 110;
+
+        if (this._slideBusy) return false; // 上一次过渡还没结束
+        const card = page.querySelector(CARD);
+        if (!card) return false;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return false;
+        }
+
+        this._slideBusy = true;
+        // 先清掉上一轮残留的动画类：同一元素上若同时挂着 m-slide-in-* 与
+        // m-slide-out-*，两条 animation 规则相撞、后定义的 m-slide-in-* 胜出，
+        // 滑出动画就静默不播（第一次之后的每次切换都会踩到）。
+        card.classList.remove('m-slide-out-left', 'm-slide-out-right');
+        card.classList.remove('m-slide-in-right', 'm-slide-in-left');
+
+        // 分支写法而非三元表达式：check:styles 要能静态收集到这些类名
+        if (dir > 0) card.classList.add('m-slide-out-left');
+        else card.classList.add('m-slide-out-right');
+
+        const hashAtStart = window.location.hash;
+
+        setTimeout(() => {
+            this._slideBusy = false;
+            // 这 110ms 里用户可能已经点了返回/切到别的页面，此时不能再把
+            // 旧页面画回去
+            if (window.location.hash !== hashAtStart) return;
+            render();
+            const next = page.querySelector(CARD);
+            if (!next) return; // 跨页加载中会先出现占位块，此时不做滑入
+            if (dir > 0) next.classList.add('m-slide-in-right');
+            else next.classList.add('m-slide-in-left');
+        }, OUT_MS);
+
+        return true;
     },
 
     /**
@@ -1014,18 +1056,8 @@ const App = {
                 page.querySelector('.m-progress-fill').style.width =
                     ((idx + 1) / total) * 100 + '%';
 
-                document.getElementById('det-prev').addEventListener('click', () => {
-                    if (idx > 0) {
-                        idx--;
-                        renderDetail();
-                    }
-                });
-                document.getElementById('det-next').addEventListener('click', () => {
-                    if (idx < total - 1) {
-                        idx++;
-                        renderDetail();
-                    }
-                });
+                document.getElementById('det-prev').addEventListener('click', () => go(-1));
+                document.getElementById('det-next').addEventListener('click', () => go(1));
                 document.getElementById('show-review-sheet').addEventListener('click', () => {
                     self.showReviewSheet(answers, total, idx, (target) => {
                         idx = target;
@@ -1034,21 +1066,20 @@ const App = {
                 });
             };
 
+            /** 切题：dir 为 1 下一题、-1 上一题；能播动画就交给 slideTo */
+            const go = (dir) => {
+                const target = idx + dir;
+                if (target < 0 || target >= total) return;
+                idx = target;
+                if (self.slideTo(page, dir, renderDetail)) return;
+                renderDetail();
+            };
+
             renderDetail();
             this.enableSwipe(
                 page,
-                () => {
-                    if (idx < total - 1) {
-                        idx++;
-                        renderDetail();
-                    }
-                },
-                () => {
-                    if (idx > 0) {
-                        idx--;
-                        renderDetail();
-                    }
-                }
+                () => go(1), // 左滑 → 下一题
+                () => go(-1) // 右滑 → 上一题
             );
         } catch (err) {
             page.innerHTML = `<div class="m-empty"><p>${esc(err.message)}</p></div>`;
@@ -1176,15 +1207,27 @@ const App = {
             }
         };
 
-        const goto = (target) => {
+        /**
+         * 跳题。dir 为 1/-1 时播滑动过渡（下一题/上一题）；0 表示直接重画
+         * （题号抽屉跨多题跳转时不适合套用左右滑动，故不传方向）。
+         */
+        const goto = (target, dir = 0) => {
             const total = currentTotal();
             if (target < 0 || target >= total) return;
             // 下一页还没回来时不越过已加载范围，避免连点跳题
             if (target >= state.questions.length && state.loading) return;
+            if (dir && self._slideBusy) return; // 过渡进行中，忽略本次输入
 
             state.idx = target;
+            const prefetch = () => {
+                if (!state.done && state.idx >= state.questions.length - PREFETCH_AT) loadNext();
+            };
+            if (dir && self.slideTo(page, dir, render)) {
+                prefetch();
+                return;
+            }
             render();
-            if (!state.done && target >= state.questions.length - PREFETCH_AT) loadNext();
+            prefetch();
         };
 
         const switchType = (type) => {
@@ -1275,8 +1318,8 @@ const App = {
             page.querySelectorAll('.recite-filter').forEach((btn) => {
                 btn.addEventListener('click', () => switchType(btn.dataset.type));
             });
-            document.getElementById('rec-prev').addEventListener('click', () => goto(state.idx - 1));
-            document.getElementById('rec-next').addEventListener('click', () => goto(state.idx + 1));
+            document.getElementById('rec-prev').addEventListener('click', () => goto(state.idx - 1, -1));
+            document.getElementById('rec-next').addEventListener('click', () => goto(state.idx + 1, 1));
             document.getElementById('show-index').addEventListener('click', () => {
                 self.showIndexSheet(total, state.questions.length, state.idx, goto);
             });
@@ -1287,8 +1330,8 @@ const App = {
         render();
         this.enableSwipe(
             page,
-            () => goto(state.idx + 1), // 左滑 → 下一题
-            () => goto(state.idx - 1), // 右滑 → 上一题
+            () => goto(state.idx + 1, 1), // 左滑 → 下一题
+            () => goto(state.idx - 1, -1), // 右滑 → 上一题
         );
         loadNext();
     },

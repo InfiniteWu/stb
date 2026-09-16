@@ -1301,6 +1301,58 @@ textarea {
     line-height: 1.5;
 }
 
+/* ═══════════════ 切题过渡 ═══════════════
+ * 卡片滑出 → 换题 → 新卡片滑入，方向跟随手势。
+ *
+ * 只对卡片本身做 transform，**绝不能加到 #page 上**：底部操作区
+ * .m-action-area 是 position: fixed，而祖先一旦带 transform，它就会退化成
+ * 相对该祖先定位，按钮会跟着一起滑走。
+ *
+ * 时长与 --duration（180ms）对齐：滑出略短，让新内容更早出现。 */
+@keyframes m-slide-out-left {
+    to {
+        transform: translateX(-28px);
+        opacity: 0;
+    }
+}
+
+@keyframes m-slide-out-right {
+    to {
+        transform: translateX(28px);
+        opacity: 0;
+    }
+}
+
+@keyframes m-slide-in-right {
+    from {
+        transform: translateX(28px);
+        opacity: 0;
+    }
+}
+
+@keyframes m-slide-in-left {
+    from {
+        transform: translateX(-28px);
+        opacity: 0;
+    }
+}
+
+.m-slide-out-left {
+    animation: m-slide-out-left 110ms var(--ease) forwards;
+}
+
+.m-slide-out-right {
+    animation: m-slide-out-right 110ms var(--ease) forwards;
+}
+
+.m-slide-in-right {
+    animation: m-slide-in-right 160ms var(--ease);
+}
+
+.m-slide-in-left {
+    animation: m-slide-in-left 160ms var(--ease);
+}
+
 /* ═══════════════ 十八、个人中心 ═══════════════ */
 .m-profile-header {
     text-align: center;
