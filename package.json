@@ -14,7 +14,6 @@
     "db:create": "wrangler d1 create shuatibao",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "db:seed:generate": "node worker/scripts/make-seed.mjs",
     "pw:set": "node worker/scripts/set-password.mjs",
     "smoke:auth": "node tools/smoke-auth.mjs",
     "icons": "node tools/build-icons.mjs",
