@@ -92,7 +92,9 @@ const App = {
         // 只能一路翻到最后一题才有返回按钮。现在恢复箭头。
         const noBack =
             ['/', '/login', '/practice/pick', '/wrongbook', '/sessions', '/profile'].indexOf(path) >= 0;
-        back.style.display = noBack ? 'none' : '';
+        // 用类而不是内联 style 控制显隐：CSP（style-src 'self'）会丢弃内联样式，
+        // index.html 里那句初始的 display:none 本来就没生效
+        back.classList.toggle('m-hidden', noBack);
 
         back.onclick = () => {
             if (path.startsWith('/sessions/')) {
@@ -293,7 +295,7 @@ const App = {
                             <span class="m-badge">判断 ${b.truefalse_count}</span>
                         </div>
                         <div class="m-mt-12">
-                            <div class="m-config-row" id="config-${b.id}" style="display:none;">
+                            <div class="m-config-row m-hidden" id="config-${b.id}">
                                 <div class="m-config-item">
                                     <div class="m-config-label">单选</div>
                                     <div class="m-counter">
@@ -349,8 +351,11 @@ const App = {
                     const id = card.dataset.id;
                     const cfg = document.getElementById('config-' + id);
                     const actions = document.getElementById('actions-' + id);
-                    const isOpen = cfg.style.display !== 'none';
-                    cfg.style.display = isOpen ? 'none' : 'grid';
+                    // 用类而不是内联 style 控制显隐：CSP（style-src 'self'，无
+                    // unsafe-inline）会把 HTML 里的内联 display:none 整条丢弃，
+                    // 卡片因此永远收不起来。
+                    const isOpen = !cfg.classList.contains('m-hidden');
+                    cfg.classList.toggle('m-hidden', isOpen);
                     actions.classList.toggle('m-hidden', isOpen);
                 });
             });
@@ -443,7 +448,7 @@ const App = {
                     <span class="tnum">第 ${state.idx + 1} / ${total} 题</span>
                     <span class="m-link" id="show-sheet">答题卡</span>
                 </div>
-                <div class="m-progress-bar"><div class="m-progress-fill" style="width:${((state.idx + 1) / total) * 100}%"></div></div>
+                <div class="m-progress-bar"><div class="m-progress-fill"></div></div>
                 <div class="m-question-card">
                     <div class="m-question-meta">
                         <span class="m-badge">${esc(this.getTypeLabel(q.type))}</span>
@@ -469,6 +474,11 @@ const App = {
                     </div>
                     <button class="m-btn m-btn-primary m-btn-submit" id="btn-submit">提交试卷</button>
                 </div>`;
+
+            // 进度条宽度必须用 CSSOM 赋值：CSP 是 style-src 'self'（无 unsafe-inline），
+            // 写在 HTML 属性里的宽度会被浏览器直接丢弃。
+            page.querySelector('.m-progress-fill').style.width =
+                ((state.idx + 1) / total) * 100 + '%';
 
             page.querySelectorAll('.m-option').forEach((opt) => {
                 opt.addEventListener('click', () => {
@@ -787,8 +797,7 @@ const App = {
                     <svg width="160" height="160" viewBox="0 0 160 160">
                         <circle class="m-result-ring-bg" cx="80" cy="80" r="70"/>
                         <circle class="m-result-ring-fill" cx="80" cy="80" r="70"
-                            stroke-dasharray="${circ}" stroke-dashoffset="${circ}"
-                            style="transition-delay:0.3s"/>
+                            stroke-dasharray="${circ}" stroke-dashoffset="${circ}"/>
                     </svg>
                     <div class="m-result-ring-text">
                         <div class="m-result-ring-value tnum">${pct}%</div>
@@ -809,7 +818,11 @@ const App = {
 
         setTimeout(() => {
             const ring = page.querySelector('.m-result-ring-fill');
-            if (ring) ring.style.strokeDashoffset = offset;
+            if (ring) {
+                // 延迟也走 CSSOM：内联 style 属性会被 CSP 丢弃
+                ring.style.transitionDelay = '0.3s';
+                ring.style.strokeDashoffset = offset;
+            }
         }, 100);
 
         document.getElementById('result-back').addEventListener('click', () => {
@@ -975,7 +988,7 @@ const App = {
                         <span class="tnum">第 ${idx + 1} / ${total} 题</span>
                         <span class="m-link" id="show-review-sheet">答题卡</span>
                     </div>
-                    <div class="m-progress-bar"><div class="m-progress-fill" style="width:${((idx + 1) / total) * 100}%"></div></div>
+                    <div class="m-progress-bar"><div class="m-progress-fill"></div></div>
                     <div class="m-review-card ${statusCls}">
                         <div class="m-review-stem">${esc(a.stem)}</div>
                         ${a.options
@@ -996,6 +1009,10 @@ const App = {
                             <button class="m-btn m-btn-primary" id="det-next" ${idx === total - 1 ? 'disabled' : ''}>下一题</button>
                         </div>
                     </div>`;
+
+                // CSP 拦内联 style 属性，进度条宽度只能这样赋值
+                page.querySelector('.m-progress-fill').style.width =
+                    ((idx + 1) / total) * 100 + '%';
 
                 document.getElementById('det-prev').addEventListener('click', () => {
                     if (idx > 0) {
@@ -1231,7 +1248,7 @@ const App = {
                     <span class="tnum">第 ${state.idx + 1} / ${total} 题</span>
                     <span class="m-link" id="show-index">题号</span>
                 </div>
-                <div class="m-progress-bar"><div class="m-progress-fill" style="width:${pct}%"></div></div>
+                <div class="m-progress-bar"><div class="m-progress-fill"></div></div>
                 <div class="m-flex m-gap-8 m-wrap">${filterHtml}</div>
                 ${cardHtml}
                 ${
@@ -1251,6 +1268,9 @@ const App = {
                         }>${state.loading ? '加载中…' : '下一题'}</button>
                     </div>
                 </div>`;
+
+            // CSP 拦内联 style 属性，进度条宽度只能这样赋值
+            page.querySelector('.m-progress-fill').style.width = pct + '%';
 
             page.querySelectorAll('.recite-filter').forEach((btn) => {
                 btn.addEventListener('click', () => switchType(btn.dataset.type));

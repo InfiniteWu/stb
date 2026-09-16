@@ -874,7 +874,7 @@ const App = {
                                 <span class="progress-label">第 ${idx + 1} / ${total} 题</span>
                                 <span class="progress-count tnum">${Math.round(((idx + 1) / total) * 100)}%</span>
                             </div>
-                            <div class="progress-bar"><div class="progress-fill" style="width:${((idx + 1) / total) * 100}%"></div></div>
+                            <div class="progress-bar"><div class="progress-fill"></div></div>
                         </div>
                         <div class="practice-question">
                             <div class="question-type-badge">${esc(this.getTypeLabel(q.type))}</div>
@@ -910,6 +910,10 @@ const App = {
                     </div>
                 </div>
             `;
+
+            // 进度条宽度必须用 CSSOM 赋值：CSP 是 style-src 'self'（无
+            // unsafe-inline），写在 HTML 属性里的内联样式会被直接丢弃。
+            c.querySelector('.progress-fill').style.width = ((idx + 1) / total) * 100 + '%';
 
             const answeredCount = Object.keys(answers).filter(
                 (k) => answers[k] && answers[k].selected !== null
@@ -1217,7 +1221,7 @@ const App = {
                                 <span class="progress-label">第 ${state.idx + 1} / 共 ${total} 题</span>
                                 <span class="progress-count tnum">${pct}%</span>
                             </div>
-                            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+                            <div class="progress-bar"><div class="progress-fill"></div></div>
                         </div>
                         ${cardHtml}
                         ${
@@ -1248,6 +1252,9 @@ const App = {
                         </div>
                     </div>
                 </div>`;
+
+            // CSP 拦内联样式属性，进度条宽度只能这样赋值
+            c.querySelector('.progress-fill').style.width = pct + '%';
 
             c.querySelectorAll('.nav-q').forEach((btn) => {
                 btn.addEventListener('click', () => goto(parseInt(btn.dataset.idx, 10)));
@@ -1299,8 +1306,7 @@ const App = {
                         <svg width="140" height="140">
                             <circle class="result-ring-bg" cx="70" cy="70" r="54"/>
                             <circle class="result-ring-fill" cx="70" cy="70" r="54"
-                                stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}"
-                                style="transition-delay:0.3s"/>
+                                stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}"/>
                         </svg>
                         <div class="result-ring-text">
                             <div class="result-ring-value tnum">${pct}%</div>
@@ -1331,7 +1337,11 @@ const App = {
 
         setTimeout(() => {
             const ring = c.querySelector('.result-ring-fill');
-            if (ring) ring.style.strokeDashoffset = offset;
+            if (ring) {
+                // 延迟也走 CSSOM：内联样式属性会被 CSP 丢弃
+                ring.style.transitionDelay = '0.3s';
+                ring.style.strokeDashoffset = offset;
+            }
         }, 100);
     },
 
@@ -1526,7 +1536,7 @@ const App = {
                                 <div class="progress-header">
                                     <span class="progress-label">第 ${idx + 1} / ${total} 题</span>
                                 </div>
-                                <div class="progress-bar"><div class="progress-fill" style="width:${((idx + 1) / total) * 100}%"></div></div>
+                                <div class="progress-bar"><div class="progress-fill"></div></div>
                             </div>
                             <div class="answer-card ${statusCls}">
                                 <div class="answer-card-header">
@@ -1572,6 +1582,9 @@ const App = {
                         </div>
                     </div>
                 `;
+
+                // CSP 拦内联样式属性，进度条宽度只能这样赋值
+                c.querySelector('.progress-fill').style.width = ((idx + 1) / total) * 100 + '%';
 
                 document.getElementById('btn-back').onclick = () => {
                     window.location.hash = '#/sessions';
@@ -1630,7 +1643,7 @@ const App = {
                     <button type="submit" class="btn btn-primary btn-lg" id="btn-do-import">${Icons.upload} 开始导入</button>
                 </form>
                 <div id="import-progress" class="import-progress hidden">
-                    <div class="progress-bar"><div class="progress-fill" id="import-bar" style="width:0%"></div></div>
+                    <div class="progress-bar"><div class="progress-fill" id="import-bar"></div></div>
                     <div class="hint" id="import-status">准备中…</div>
                 </div>
             </div></div>
@@ -1693,6 +1706,9 @@ const App = {
             const submitBtn = document.getElementById('btn-do-import');
 
             progress.classList.remove('hidden');
+            // 起始宽度改为这里赋值：HTML 属性里的内联样式会被 CSP 丢弃，
+            // 而 .progress-fill 没有默认宽度，不赋值就会显示成满格
+            bar.style.width = '0%';
             submitBtn.disabled = true;
 
             try {

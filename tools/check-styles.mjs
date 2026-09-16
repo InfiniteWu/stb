@@ -146,6 +146,32 @@ for (const file of CSS_FILES) {
     }
 }
 
+// ── 4. 内联 style 属性 ─────────────────────────────────────────
+//
+// CSP 是 style-src 'self'（不含 'unsafe-inline'），HTML 里的 style="…" 会被
+// 浏览器整条丢弃：元素 CSSOM 为空、计算值退回样式表，控制台只留一条违规
+// 日志。表现是「样式静默失效」—— 比如 style="display:none" 的区块照样显示、
+// style="width:0%" 的进度条显示成满格，肉眼极难定位。
+// 需要动态样式时用 CSSOM（el.style.width = …）或加类名。
+console.log('\n══ 内联 style 属性（会被 CSP 丢弃）══');
+const INLINE_STYLE_RE = /style\s*=\s*"/g;
+for (const file of MARKUP_FILES) {
+    if (!existsSync(resolve(REPO, file))) continue;
+    const lines = read(file).split('\n');
+    const hits = [];
+    lines.forEach((line, i) => {
+        INLINE_STYLE_RE.lastIndex = 0;
+        if (INLINE_STYLE_RE.test(line)) hits.push(i + 1);
+    });
+    if (hits.length) {
+        failures += hits.length;
+        console.log(`  ✘ ${file}`);
+        console.log(`      第 ${hits.join(', ')} 行含内联 style`);
+    } else {
+        console.log(`  ✔ ${file}`);
+    }
+}
+
 console.log();
 if (failures) {
     console.log(`✘ 共 ${failures} 处问题`);
