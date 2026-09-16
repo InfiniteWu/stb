@@ -472,7 +472,7 @@ const App = {
                         <button class="m-btn m-btn-ghost" id="btn-dontknow">不会</button>
                         <button class="m-btn m-btn-secondary" id="btn-next" ${state.idx === total - 1 ? 'disabled' : ''}>下一题</button>
                     </div>
-                    <button class="m-btn m-btn-primary m-btn-submit" id="btn-submit">提交试卷</button>
+                    <button class="m-btn m-btn-primary" id="btn-submit">提交试卷</button>
                 </div>`;
 
             // 进度条宽度必须用 CSSOM 赋值：CSP 是 style-src 'self'（无 unsafe-inline），

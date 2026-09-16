@@ -403,12 +403,6 @@ textarea {
     color: var(--brand-600);
 }
 
-/* 提交：结果导向的主动作，用成功色 */
-.m-btn-submit {
-    background: var(--success);
-    color: var(--surface);
-}
-
 /* 纯文字危险按钮（如「退出登录」）：无底色，仅文字用负向色 */
 .m-btn-danger-text {
     background: transparent;
