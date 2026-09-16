@@ -59,16 +59,30 @@ const App = {
     },
 
     showLoginPage() {
+        this.hideLoading();
         document.getElementById('login-page').classList.remove('hidden');
         document.getElementById('main-app').classList.add('hidden');
     },
 
     showMainApp() {
+        this.hideLoading();
         document.getElementById('login-page').classList.add('hidden');
         document.getElementById('main-app').classList.remove('hidden');
         this.updateUserInfo();
         this.updateAdminVisibility();
         this.initLogout();
+    },
+
+    /**
+     * 移除首屏加载指示。
+     *
+     * index.html 的首屏默认内容就是这个加载指示（登录页默认 hidden），
+     * 因为鉴权要等一次 /api/auth/me 往返 —— 否则已登录用户会先看到登录页
+     * 一闪而过。鉴权结果出来后由下面两个方法移除它。
+     */
+    hideLoading() {
+        const el = document.getElementById('app-loading');
+        if (el) el.remove();
     },
 
     updateUserInfo() {

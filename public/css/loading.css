@@ -1,0 +1,50 @@
+/* ═══════════════════════════════════════════════════════════════
+ * 首屏加载指示（桌面端与移动端共用）
+ *
+ * 为什么需要它：桌面 index.html 原本默认显示登录页 —— 已登录用户会看到登录页
+ * 一闪而过再进仪表盘；移动端则是先白屏等 /api/auth/me。两端现在统一把首屏交给
+ * 这个中性的加载指示，等鉴权结果回来再切到登录页或主应用。
+ *
+ * 纯 SVG 绘制：底轨用品牌浅色、转动的弧用品牌主色，与整体配色一致。
+ * CSP 是 style-src 'self'，所以不能给 SVG 写内联 style 属性 —— 描边、虚线、
+ * 线帽全部由本文件的类控制。
+ * ═══════════════════════════════════════════════════════════════ */
+
+.app-loading {
+    position: fixed;
+    inset: 0;
+    /* 需要盖住移动端底部标签栏（z-index 200）与答题卡抽屉（300）。
+       它在首屏渲染后即被移除，不会与其它浮层共存。 */
+    z-index: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+}
+
+.app-loading-spinner {
+    width: 40px;
+    height: 40px;
+    animation: app-loading-spin calc(var(--duration) * 5) linear infinite;
+}
+
+.app-loading-track {
+    fill: none;
+    stroke: var(--brand-100);
+    stroke-width: 4;
+}
+
+/* r=16 → 周长约 100.5，取 30 实线 + 71 空白，约四分之一圆弧 */
+.app-loading-arc {
+    fill: none;
+    stroke: var(--brand-600);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 30 71;
+}
+
+@keyframes app-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

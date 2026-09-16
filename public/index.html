@@ -7,14 +7,25 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/loading.css">
 </head>
 <body>
     <div id="app">
 
+        <!-- 首屏加载指示：鉴权结果返回前只显示它。
+             登录页默认隐藏，避免已登录用户看到登录页一闪而过；
+             由 app.js 的 showLoginPage() / showMainApp() 移除本节点。 -->
+        <div id="app-loading" class="app-loading" role="status" aria-label="加载中">
+            <svg class="app-loading-spinner" viewBox="0 0 40 40" aria-hidden="true">
+                <circle class="app-loading-track" cx="20" cy="20" r="16"></circle>
+                <circle class="app-loading-arc" cx="20" cy="20" r="16"></circle>
+            </svg>
+        </div>
+
         <!-- ══════════════════════════════════════════════════════
              登录页：整屏 12 栅格 —— 品牌展示 8 列 + 登录表单 4 列
              ══════════════════════════════════════════════════════ -->
-        <div id="login-page" class="grid-12">
+        <div id="login-page" class="grid-12 hidden">
             <div class="login-visual">
                 <div class="login-visual-bg" aria-hidden="true"></div>
                 <div class="login-visual-inner">

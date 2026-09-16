@@ -10,6 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="stylesheet" href="../css/tokens.css">
     <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="../css/loading.css">
 </head>
 <body>
     <div id="app">
@@ -21,7 +22,16 @@
             <div id="header-right" class="m-header-right"></div>
         </header>
 
-        <main id="page" class="m-page"></main>
+        <!-- 首屏加载指示：先占住 #page，等 bootstrap() 拿到鉴权结果后由
+             首个页面渲染替换掉（原先这里是空白，会白屏几百毫秒）。 -->
+        <main id="page" class="m-page">
+            <div id="app-loading" class="app-loading" role="status" aria-label="加载中">
+                <svg class="app-loading-spinner" viewBox="0 0 40 40" aria-hidden="true">
+                    <circle class="app-loading-track" cx="20" cy="20" r="16"></circle>
+                    <circle class="app-loading-arc" cx="20" cy="20" r="16"></circle>
+                </svg>
+            </div>
+        </main>
 
         <nav id="tabbar" class="m-tabbar">
             <a href="#/" class="m-tab active" data-tab="home">

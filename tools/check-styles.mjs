@@ -22,6 +22,7 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CSS_FILES = [
     'public/css/tokens.css',
     'public/css/style.css',
+    'public/css/loading.css',
     'public/mobile/css/mobile.css',
 ];
 
