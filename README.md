@@ -50,8 +50,7 @@ legacy/                 迁移前的 PHP 实现与旧数据库快照
 
 ## 部署
 
-**当前线上地址：https://stb.jorinedu.top**（`*.workers.dev` 已关闭，访问入口只有自有域名）
-
+**当前线上地址：https://stb.jorinedu.top**  
 已完成的部署状态：
 
 | 项 | 值 |
