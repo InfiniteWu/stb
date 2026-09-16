@@ -620,6 +620,10 @@ textarea {
 
 .m-question-card {
     background: var(--surface);
+    /* 与桌面端 .practice-question、移动端 .m-card 同款中性边框。
+       刻意不用品牌色：.m-option.selected 已经用品牌色边框 + 光晕表达「已选中」，
+       容器再用品牌色描边会让选中项不再跳出来。 */
+    border: 2px solid var(--ink-300);
     border-radius: var(--radius-lg);
     padding: var(--space-5) var(--space-4);
     box-shadow: var(--shadow-sm);
