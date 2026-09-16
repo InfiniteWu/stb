@@ -429,6 +429,10 @@ textarea {
 /* ═══════════════ 七、卡片 ═══════════════ */
 .m-card {
     background: var(--surface);
+    /* 页面底色（近白）与卡片（纯白）几乎同色，只靠 --shadow-sm（6% 透明度、
+       1px 偏移）分不开，卡片看起来「浮」不起来。这里补 2px 边框：与桌面端
+       .card 完全一致，也符合移动端既有的边框语言（.m-input 等 9 处同款）。 */
+    border: 2px solid var(--ink-300);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     overflow: hidden;
