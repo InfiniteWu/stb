@@ -13,8 +13,8 @@ const App = {
     currentUser: null,
     practiceData: null,
     practiceResult: null,
-    touchStartX: 0,
-    touchStartY: 0,
+    /** 背题模式状态：{ bank, type, questions, total, idx, loading, epoch } */
+    reciteData: null,
 
     // ══════════════════════════════════════════════════════════
     // 启动与路由
@@ -79,7 +79,10 @@ const App = {
         const back = document.getElementById('header-back');
         const title = document.getElementById('header-title');
 
-        const noTab = ['/login', '/practice/do'].indexOf(path) >= 0 || path.startsWith('/sessions/');
+        // 背题页与答题页一样有常驻底部操作区，隐藏标签栏避免遮挡
+        const noTab =
+            ['/login', '/practice/do', '/recite'].indexOf(path) >= 0 ||
+            path.startsWith('/sessions/');
         tabbar.style.display = noTab ? 'none' : 'flex';
 
         const noHeader = path === '/login';
@@ -97,6 +100,9 @@ const App = {
                 window.location.hash = '#/sessions';
             } else if (path === '/practice/do' || path === '/practice/result') {
                 window.location.hash = '#/';
+            } else if (path === '/recite') {
+                // 直接以 #/recite?bank_id=N 打开时 history 里没有上一页可退
+                window.location.hash = '#/practice/pick';
             } else {
                 window.history.back();
             }
@@ -110,12 +116,14 @@ const App = {
         page.style.padding = '';
         page.classList.remove('m-page--with-submit');
         page.classList.remove('m-page--with-actions');
+        page.classList.remove('m-page--swipeable');
 
         if (path === '/' || path === '') this.renderDashboard(page, title);
         else if (path === '/login') this.renderLogin(page, header);
         else if (path === '/practice/pick') this.renderPracticePick(page, title);
         else if (path === '/practice/do') this.renderPracticeDo(page, title);
         else if (path === '/practice/result') this.renderPracticeResult(page, title);
+        else if (path === '/recite') this.renderRecite(page, title);
         else if (path === '/wrongbook') this.renderWrongBook(page, title);
         else if (path === '/sessions') this.renderSessions(page, title);
         else if (path.match(/^\/sessions\/\d+$/)) this.renderSessionDetail(path.split('/')[2], page, title);
@@ -123,6 +131,13 @@ const App = {
         else page.innerHTML = '<div class="m-empty"><p>页面不存在</p></div>';
 
         this.hydrateIcons(page);
+    },
+
+    /** 取 hash 上的查询参数（与桌面端同名同实现） */
+    hashParams() {
+        const hash = window.location.hash || '';
+        const qi = hash.indexOf('?');
+        return new URLSearchParams(qi === -1 ? '' : hash.slice(qi + 1));
     },
 
     /** M3：total 为 0 时不再出现 NaN% */
@@ -304,7 +319,10 @@ const App = {
                                     </div>
                                 </div>
                             </div>
-                            <button class="m-btn m-btn-primary m-btn-sm start-practice m-hidden" id="start-${b.id}" data-id="${b.id}">开始练习</button>
+                            <div class="m-flex m-gap-8 m-hidden" id="actions-${b.id}">
+                                <button class="m-btn m-btn-primary m-btn-sm start-practice" id="start-${b.id}" data-id="${b.id}">开始练习</button>
+                                <button class="m-btn m-btn-secondary m-btn-sm recite-bank" id="recite-${b.id}" data-id="${b.id}">背题模式</button>
+                            </div>
                         </div>
                     </div>
                 </div>`
@@ -322,13 +340,18 @@ const App = {
 
             page.querySelectorAll('.m-card[data-id]').forEach((card) => {
                 card.addEventListener('click', (e) => {
-                    if (e.target.closest('.m-counter-btn') || e.target.closest('.start-practice')) return;
+                    if (
+                        e.target.closest('.m-counter-btn') ||
+                        e.target.closest('.start-practice') ||
+                        e.target.closest('.recite-bank')
+                    )
+                        return;
                     const id = card.dataset.id;
                     const cfg = document.getElementById('config-' + id);
-                    const btn = document.getElementById('start-' + id);
+                    const actions = document.getElementById('actions-' + id);
                     const isOpen = cfg.style.display !== 'none';
                     cfg.style.display = isOpen ? 'none' : 'grid';
-                    btn.classList.toggle('m-hidden', isOpen);
+                    actions.classList.toggle('m-hidden', isOpen);
                 });
             });
 
@@ -371,6 +394,13 @@ const App = {
                     }
                 });
             });
+
+            // 背题模式不受上面的题量配置影响：进入后按题型筛选整库通背
+            page.querySelectorAll('.recite-bank').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    window.location.hash = '#/recite?bank_id=' + btn.dataset.id;
+                });
+            });
         } catch (err) {
             page.innerHTML = `<div class="m-empty"><p>${esc(err.message)}</p></div>`;
         }
@@ -385,6 +415,8 @@ const App = {
         document.getElementById('tabbar').style.display = 'none';
         // 提交按钮固定在屏幕底部，页面需相应多留出底部空间
         page.classList.add('m-page--with-submit');
+        // 左右拖动切上一题/下一题
+        page.classList.add('m-page--swipeable');
 
         const data = this.practiceData;
         if (!data || !data.questions || !data.questions.length) {
@@ -650,19 +682,61 @@ const App = {
         });
     },
 
+    /**
+     * 左右拖动切上一题 / 下一题。
+     *
+     * 参数约定（与各调用点一致）：onSwipeLeft = 下一题，onSwipeRight = 上一题。
+     *
+     * 用属性赋值（ontouchstart 等）而不是 addEventListener：本方法会在每次
+     * render() 之后被重新调用，属性赋值会替换掉上一次的处理器，而
+     * addEventListener 会一层层累积监听器 —— 结果是一次拖动切好几题。
+     *
+     * 纵向滚动必须照常可用：一旦判定为纵向拖动就放弃本次手势，而不是强行
+     * 接管，否则用户往下翻长题干时会被误切到下一题。
+     */
     enableSwipe(el, onSwipeLeft, onSwipeRight) {
+        const MIN_DX = 60; // 横向位移达到该值才切换
+        const MAX_DY = 80; // 纵向位移超过该值即判定为滚动，放弃手势
+        let startX = 0;
+        let startY = 0;
+        let tracking = false;
+
         el.ontouchstart = (e) => {
-            this.touchStartX = e.touches[0].clientX;
-            this.touchStartY = e.touches[0].clientY;
-        };
-        el.ontouchend = (e) => {
-            const t = e.changedTouches[0];
-            const dx = t.clientX - this.touchStartX;
-            const dy = t.clientY - this.touchStartY;
-            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-                if (dx < 0) onSwipeLeft();
-                else onSwipeRight();
+            // 多指（缩放等）不参与切题
+            if (e.touches.length !== 1) {
+                tracking = false;
+                return;
             }
+            tracking = true;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        };
+
+        el.ontouchmove = (e) => {
+            if (!tracking || e.touches.length !== 1) return;
+            if (Math.abs(e.touches[0].clientY - startY) > MAX_DY) tracking = false;
+        };
+
+        el.ontouchend = (e) => {
+            if (!tracking) return;
+            tracking = false;
+
+            const t = e.changedTouches && e.changedTouches[0];
+            if (!t) return;
+
+            const dx = t.clientX - startX;
+            const dy = t.clientY - startY;
+            if (Math.abs(dx) < MIN_DX) return;
+            // 横向位移必须明显大于纵向，避免斜着拖时误触发
+            if (Math.abs(dx) <= Math.abs(dy) * 1.5) return;
+
+            if (dx < 0) onSwipeLeft();
+            else onSwipeRight();
+        };
+
+        // 浏览器接管手势（如判定为滚动）时会发 touchcancel，必须复位
+        el.ontouchcancel = () => {
+            tracking = false;
         };
     },
 
@@ -866,6 +940,8 @@ const App = {
         titleEl.textContent = '答题详情';
         // 底部有常驻的上一题/下一题操作区，页面需相应留白
         page.classList.add('m-page--with-actions');
+        // 左右拖动切上一题/下一题
+        page.classList.add('m-page--swipeable');
         page.innerHTML = '<div class="m-loading"><div class="m-spinner"></div>加载中...</div>';
         try {
             const data = await API.getSession(id);
@@ -960,6 +1036,301 @@ const App = {
         } catch (err) {
             page.innerHTML = `<div class="m-empty"><p>${esc(err.message)}</p></div>`;
         }
+    },
+
+    // ══════════════════════════════════════════════════════════
+    // 背题
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * 背题模式：逐题直接给出正确答案与解析，不判分、不落库。
+     *
+     * 数据来源是 GET /api/questions（已对登录用户返回 answer / explanation），
+     * 而不是 /api/practice/pick —— 后者刻意不下发答案（判分在服务端）。
+     * 因此背题全程只读：不写 practice_sessions / practice_answers / wrong_book，
+     * 既不污染错题本与统计，也不消耗 D1 的写入配额。
+     */
+    async renderRecite(page, titleEl) {
+        titleEl.textContent = '背题';
+        // 底部有常驻的上/下一题操作区
+        page.classList.add('m-page--with-actions');
+        // 左右拖动切题：向浏览器声明横向手势由页面自己处理
+        page.classList.add('m-page--swipeable');
+
+        const bankId = parseInt(this.hashParams().get('bank_id') || '', 10);
+        if (!bankId) {
+            page.innerHTML = '<div class="m-empty"><p>缺少题库参数</p></div>';
+            return;
+        }
+
+        page.innerHTML = '<div class="m-loading"><div class="m-spinner"></div>加载中...</div>';
+
+        let bank;
+        try {
+            bank = await API.getBank(bankId);
+        } catch (err) {
+            page.innerHTML = `<div class="m-empty"><p>${esc(err.message)}</p></div>`;
+            return;
+        }
+
+        const self = this;
+        const PAGE_SIZE = 200; // 服务端 per_page 硬上限
+        const PREFETCH_AT = 20; // 距已加载尾部还剩这么多题时预取下一页
+
+        const state = {
+            bank: bank,
+            type: '', // '' = 全部
+            questions: [],
+            idx: 0,
+            loading: false,
+            done: false,
+            error: '',
+            epoch: 0, // 题型切换令牌：用于丢弃过期响应
+        };
+        this.reciteData = state;
+
+        // 只保留题量非空的题型，避免出现点进去空空如也的筛选项
+        const types = [
+            { key: '', label: '全部', count: bank.question_count },
+            { key: 'single', label: '单选', count: bank.single_count },
+            { key: 'multiple', label: '多选', count: bank.multiple_count },
+            { key: 'truefalse', label: '判断', count: bank.truefalse_count },
+        ].filter((t) => t.count > 0);
+
+        if (types.length === 0) {
+            page.innerHTML = '<div class="m-empty"><p>这个题库还没有题目</p></div>';
+            return;
+        }
+
+        /** 当前筛选下的总题数（取题库的预计算统计，不额外查表） */
+        const currentTotal = () => {
+            const t = types.find((x) => x.key === state.type);
+            return t ? t.count : 0;
+        };
+
+        /** 正确答案既可能是下标也可能是指标数组；解析失败时服务端给 -1 */
+        const toIndexArray = (v) => {
+            if (v === null || v === undefined) return [];
+            return Array.isArray(v) ? v : [v];
+        };
+
+        /** 取下一页；同一时刻只允许一个请求在飞 */
+        const loadNext = async () => {
+            if (state.loading) return;
+            if (state.questions.length >= currentTotal()) {
+                state.done = true;
+                return;
+            }
+
+            const epoch = state.epoch;
+            state.loading = true;
+            state.error = '';
+            render();
+
+            try {
+                const res = await API.getQuestions({
+                    bank_id: bank.id,
+                    type: state.type || undefined,
+                    page: Math.floor(state.questions.length / PAGE_SIZE) + 1,
+                    per_page: PAGE_SIZE,
+                });
+                if (epoch !== state.epoch) return; // 期间切换了题型，丢弃
+
+                // offset 分页在题目被删时可能重叠，按 id 去重
+                const seen = new Set(state.questions.map((q) => q.id));
+                let added = 0;
+                for (const q of res.items || []) {
+                    if (!seen.has(q.id)) {
+                        state.questions.push(q);
+                        seen.add(q.id);
+                        added++;
+                    }
+                }
+                // 整页都是重复/已删题目时收手，避免反复请求同一页
+                if (added === 0) state.done = true;
+            } catch (err) {
+                if (epoch === state.epoch) state.error = err.message;
+            } finally {
+                if (epoch === state.epoch) {
+                    state.loading = false;
+                    state.done = state.questions.length >= currentTotal();
+                    render();
+                }
+            }
+        };
+
+        const goto = (target) => {
+            const total = currentTotal();
+            if (target < 0 || target >= total) return;
+            // 下一页还没回来时不越过已加载范围，避免连点跳题
+            if (target >= state.questions.length && state.loading) return;
+
+            state.idx = target;
+            render();
+            if (!state.done && target >= state.questions.length - PREFETCH_AT) loadNext();
+        };
+
+        const switchType = (type) => {
+            if (type === state.type) return;
+            state.type = type;
+            state.epoch++; // 让在飞请求作废
+            state.questions = [];
+            state.idx = 0;
+            state.loading = false;
+            state.done = false;
+            state.error = '';
+            render();
+            loadNext();
+        };
+
+        const render = () => {
+            const total = currentTotal();
+            const q = state.questions[state.idx];
+            const answerIdxs = q ? toIndexArray(q.answer) : [];
+            const answerOk = answerIdxs.length > 0 && answerIdxs.every((i) => i >= 0);
+            const pct = total > 0 ? ((state.idx + 1) / total) * 100 : 0;
+
+            const filterHtml = types
+                .map(
+                    (t) =>
+                        `<button class="m-btn m-btn-sm ${
+                            t.key === state.type ? 'm-btn-primary' : 'm-btn-secondary'
+                        } recite-filter" data-type="${t.key}">${t.label} ${t.count}</button>`,
+                )
+                .join('');
+
+            const cardHtml = q
+                ? `
+                    <div class="m-review-card">
+                        <div class="m-question-meta"><span class="m-badge">${esc(self.getTypeLabel(q.type))}</span></div>
+                        <div class="m-review-stem">${esc(q.stem)}</div>
+                        ${q.options
+                            .map((opt, oi) => {
+                                // 先算好修饰类，避免在 class="…" 里跨行插值
+                                // （check-styles 会把插值里的标识符当成类名）
+                                const optCls =
+                                    answerOk && answerIdxs.indexOf(oi) >= 0 ? ' correct' : '';
+                                return `<div class="m-review-option${optCls}">${String.fromCharCode(65 + oi)}. ${esc(opt)}</div>`;
+                            })
+                            .join('')}
+                        ${
+                            answerOk
+                                ? ''
+                                : '<div class="m-review-explanation">本题答案数据异常，无法标注正确选项</div>'
+                        }
+                        ${
+                            q.explanation
+                                ? `<div class="m-review-explanation"><strong>解析：</strong>${esc(q.explanation)}</div>`
+                                : ''
+                        }
+                    </div>`
+                : '<div class="m-loading"><div class="m-spinner"></div>加载中...</div>';
+
+            page.innerHTML = `
+                <div class="m-practice-header">
+                    <span class="tnum">第 ${state.idx + 1} / ${total} 题</span>
+                    <span class="m-link" id="show-index">题号</span>
+                </div>
+                <div class="m-progress-bar"><div class="m-progress-fill" style="width:${pct}%"></div></div>
+                <div class="m-flex m-gap-8 m-wrap">${filterHtml}</div>
+                ${cardHtml}
+                ${
+                    state.error
+                        ? `<div class="m-card"><div class="m-card-body">加载失败：${esc(
+                              state.error,
+                          )} <button class="m-link" id="rec-retry">重试</button></div></div>`
+                        : ''
+                }
+                <div class="m-action-area">
+                    <div class="m-practice-bar">
+                        <button class="m-btn m-btn-primary" id="rec-prev" ${
+                            state.idx === 0 ? 'disabled' : ''
+                        }>上一题</button>
+                        <button class="m-btn m-btn-primary" id="rec-next" ${
+                            state.idx >= total - 1 ? 'disabled' : ''
+                        }>${state.loading ? '加载中…' : '下一题'}</button>
+                    </div>
+                </div>`;
+
+            page.querySelectorAll('.recite-filter').forEach((btn) => {
+                btn.addEventListener('click', () => switchType(btn.dataset.type));
+            });
+            document.getElementById('rec-prev').addEventListener('click', () => goto(state.idx - 1));
+            document.getElementById('rec-next').addEventListener('click', () => goto(state.idx + 1));
+            document.getElementById('show-index').addEventListener('click', () => {
+                self.showIndexSheet(total, state.questions.length, state.idx, goto);
+            });
+            const retry = document.getElementById('rec-retry');
+            if (retry) retry.addEventListener('click', () => loadNext());
+        };
+
+        render();
+        this.enableSwipe(
+            page,
+            () => goto(state.idx + 1), // 左滑 → 下一题
+            () => goto(state.idx - 1), // 右滑 → 上一题
+        );
+        loadNext();
+    },
+
+    /**
+     * 背题页的题号抽屉。
+     *
+     * 只列「已加载」的题号：大题库有一两千题，一次渲染上千个按钮既慢又毫无
+     * 意义（未加载的题号点了也没有数据）。继续往后翻会自动加载更多。
+     */
+    showIndexSheet(total, loaded, currentIdx, onJump) {
+        const mask = document.createElement('div');
+        mask.className = 'm-drawer-mask';
+        const drawer = document.createElement('div');
+        drawer.className = 'm-drawer';
+
+        let navHtml = '';
+        for (let i = 0; i < loaded; i++) {
+            const curCls = i === currentIdx ? ' current' : '';
+            navHtml += `<button class="m-sheet-btn${curCls}" data-idx="${i}">${i + 1}</button>`;
+        }
+
+        drawer.innerHTML = `
+            <div class="m-drawer-header">
+                <span class="m-drawer-title">题号</span>
+                <button class="m-drawer-close" aria-label="关闭"><span data-icon="x"></span></button>
+            </div>
+            <div class="m-drawer-body">
+                <div class="m-sheet-legend">
+                    <span class="m-sheet-legend-item"><span class="m-sheet-dot current"></span>当前</span>
+                    <span class="m-sheet-legend-item">共 ${total} 题，已加载 ${loaded} 题</span>
+                </div>
+                <div class="m-sheet-grid">${navHtml}</div>
+            </div>`;
+
+        document.body.appendChild(mask);
+        document.body.appendChild(drawer);
+        this.hydrateIcons(drawer);
+
+        const close = () => {
+            mask.classList.remove('open');
+            drawer.classList.remove('open');
+            setTimeout(() => {
+                mask.remove();
+                drawer.remove();
+            }, 300);
+        };
+
+        mask.addEventListener('click', close);
+        drawer.querySelector('.m-drawer-close').addEventListener('click', close);
+        drawer.querySelectorAll('.m-sheet-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const target = parseInt(btn.dataset.idx, 10);
+                close();
+                onJump(target);
+            });
+        });
+
+        requestAnimationFrame(() => {
+            mask.classList.add('open');
+            drawer.classList.add('open');
+        });
     },
 
     // ══════════════════════════════════════════════════════════

@@ -113,6 +113,14 @@ Workers 免费版每次请求只有 **10 ms CPU**。在真实 workerd 中实测�
 
 实测在 workerd 中序列化 1376 道题约需 **8 ms CPU**，已逼近免费版 10 ms 上限。因此 `GET /api/questions` 的 `per_page` 硬上限为 200，导入改为客户端分批（每批 30 题，控制在每次调用 50 次查询额度内）。
 
+### 背题模式为什么只读
+
+背题（`#/recite?bank_id=N`，桌面与移动端都有）逐题直接给出正确答案与解析，用于快速过一遍题库。它**不判分、不落库**：不写 `practice_sessions` / `practice_answers` / `wrong_book`，因此既不污染错题本与统计，也不消耗 D1 的写入配额（免费版每日 10 万行，一次大批量导入就可能用尽）。
+
+实现上，它读的是 `GET /api/questions`（本就对登录用户返回 `answer` / `explanation`），而**不是** `/api/practice/pick` —— 后者刻意不下发答案，判分在服务端，是练习链路的设计前提，不要为背题去改它。题库很大时按 `per_page=200` 续载，接近已加载尾部自动预取下一页。
+
+移动端的答题页、背题页与答题详情页都支持左右拖动切上一题/下一题（`.m-page--swipeable` + `enableSwipe()`）；纵向滚动不受影响。
+
 ### 时间一律显式按北京时间计算
 
 D1 运行在 UTC，`datetime('now','localtime')` 在 D1 中**等于 UTC**。照搬旧 SQL 会让所有「今天」的判定偏移 8 小时，且对列套函数会使索引失效（D1 按扫描行数计费）。所有时间戳由 `worker/src/lib/time.ts` 显式计算并绑定，格式 `YYYY-MM-DD HH:MM:SS`，与历史数据一致。

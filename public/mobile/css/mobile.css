@@ -202,6 +202,17 @@ textarea {
     padding-bottom: calc(var(--space-12) + var(--space-10) + var(--safe-bottom));
 }
 
+/* 支持左右拖动切上一题/下一题的页面（答题页、背题页、答题详情页）。
+   pan-y 表示「纵向平移交给浏览器，横向手势由页面自己处理」——不加这一条时，
+   Android Chrome 之类的浏览器可能把横向拖动当成页面平移或返回手势抢走，
+   页面的 touch 处理器就收不到完整的 start→end 序列了。纵向滚动不受影响。
+   子元素也要声明：touch-action 不继承，且以「触点所在元素」的取值为准，
+   否则从固定底部操作区开始的拖动仍会被浏览器接管。 */
+.m-page--swipeable,
+.m-page--swipeable * {
+    touch-action: pan-y;
+}
+
 /* ═══════════════ 四、底部标签栏 ═══════════════ */
 .m-tabbar {
     position: fixed;

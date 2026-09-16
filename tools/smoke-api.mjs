@@ -106,6 +106,25 @@ check('第 2 页与第 1 页不重复', p2.data?.items?.[0]?.id !== p1.data?.ite
 const clamped = await req('GET', '/api/questions?bank_id=1&per_page=99999');
 check('per_page 被钳制到 200', clamped.data?.per_page === 200, String(clamped.data?.per_page));
 
+// 背题模式依赖这条契约：题目列表必须下发答案与解析（抽题接口则相反，见下一段）
+const withAnswer = p1.data?.items?.[0];
+check(
+  '题目列表下发 answer',
+  withAnswer && 'answer' in withAnswer && withAnswer.answer !== undefined,
+  JSON.stringify(withAnswer)?.slice(0, 120)
+);
+check(
+  '题目列表下发 explanation',
+  withAnswer && typeof withAnswer.explanation === 'string',
+  String(withAnswer?.explanation)
+);
+const byType = await req('GET', '/api/questions?bank_id=1&type=single&page=1&per_page=5');
+check(
+  '题目列表支持按题型过滤',
+  byType.status === 200 && byType.data?.items?.every((q) => q.type === 'single'),
+  JSON.stringify(byType.data?.items?.map((q) => q.type))
+);
+
 // ── 抽题不得下发答案 ──
 console.log('\n抽题（不应泄露答案）');
 const pick = await req('POST', '/api/practice/pick', {

@@ -1395,6 +1395,14 @@ input[type="radio"]:focus-visible {
     color: var(--ink-900);
 }
 
+/* 背题页侧栏的题型筛选行（全部 / 单选 / 多选 / 判断） */
+.recite-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
 .question-nav {
     display: grid;
     /* 固定 5 列：侧栏只有 2 栅格（约 170px），5 个方块是能容纳且不拥挤的上限。

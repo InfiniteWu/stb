@@ -38,9 +38,10 @@ const read = (p) => readFileSync(resolve(REPO, p), 'utf8');
  * 有意不带样式的类名 —— 它们是 JS 的选择器钩子，不是样式类：
  *   .admin-only      —— app.js 通过内联 display 控制显隐
  *   .start-practice  —— 移动端事件委托的判定依据，样式由 .m-btn 系列承担
+ *   .recite-bank     —— 同上，背题入口按钮的 JS 钩子，样式由 .m-btn 系列承担
  * 除此之外不应出现「用了但没有样式」的类名。
  */
-const STYLELESS_HOOKS = new Set(['admin-only', 'start-practice']);
+const STYLELESS_HOOKS = new Set(['admin-only', 'start-practice', 'recite-bank']);
 
 let failures = 0;
 

@@ -173,6 +173,7 @@ const App = {
         else if (path === '/practice/pick') this.loadPracticePick();
         else if (path === '/practice/do') this.loadPracticeDo();
         else if (path === '/practice/result') this.loadPracticeResult();
+        else if (path === '/recite') this.loadRecite();
         else if (path === '/wrongbook') this.loadWrongBook();
         else if (path === '/sessions') this.loadSessions(1);
         else if (path.match(/^\/sessions\/\d+$/)) this.loadSessionDetail(path.split('/')[2]);
@@ -789,10 +790,18 @@ const App = {
                         <div class="form-group">
                             <label class="checkbox-label"><input type="checkbox" id="p-shuffle"> 打乱选项顺序</label>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-lg">开始练习</button>
+                        <div class="practice-actions">
+                            <button type="submit" class="btn btn-primary btn-lg">开始练习</button>
+                            <button type="button" class="btn btn-secondary btn-lg" id="btn-recite">背题模式</button>
+                        </div>
                     </form>
                 </div></div>
             `;
+
+            // 背题不受上面的题量配置与选项乱序影响：进入后按题型筛选整库通背
+            document.getElementById('btn-recite').onclick = () => {
+                window.location.hash = '#/recite?bank_id=' + bankId;
+            };
 
             document.getElementById('practice-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -1008,6 +1017,266 @@ const App = {
         };
 
         render();
+    },
+
+    // ══════════════════════════════════════════════════════════
+    // 背题模式
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * 背题模式：逐题直接给出正确答案与解析，不判分、不落库。
+     *
+     * 数据来源是 GET /api/questions（已对登录用户返回 answer / explanation），
+     * 而不是 /api/practice/pick —— 后者刻意不下发答案（判分在服务端）。
+     * 因此背题全程只读：不写 practice_sessions / practice_answers / wrong_book，
+     * 既不污染错题本与统计，也不消耗 D1 的写入配额。
+     *
+     * 与移动端 public/mobile/js/app.js 的 renderRecite 保持同一套行为：
+     * 整库通背、按题型筛选、每页 200 题续载、接近尾部预取。
+     */
+    async loadRecite() {
+        const c = document.getElementById('page-container');
+        const bankId = parseInt(this.hashParams().get('bank_id') || '', 10);
+        if (!bankId) {
+            c.innerHTML = '<div class="error-msg">缺少题库参数</div>';
+            return;
+        }
+
+        c.innerHTML = '<div class="loading">加载中…</div>';
+
+        let bank;
+        try {
+            bank = await API.getBank(bankId);
+        } catch (error) {
+            c.innerHTML = `<div class="error-msg">${esc(error.message)}</div>`;
+            return;
+        }
+
+        const PAGE_SIZE = 200; // 服务端 per_page 硬上限
+        const PREFETCH_AT = 20; // 距已加载尾部还剩这么多题时预取下一页
+
+        const state = {
+            type: '', // '' = 全部
+            questions: [],
+            idx: 0,
+            loading: false,
+            done: false,
+            error: '',
+            epoch: 0, // 题型切换令牌：用于丢弃过期响应
+        };
+
+        // 只保留题量非空的题型，避免出现点进去空空如也的筛选项
+        const types = [
+            { key: '', label: '全部', count: bank.question_count },
+            { key: 'single', label: '单选', count: bank.single_count },
+            { key: 'multiple', label: '多选', count: bank.multiple_count },
+            { key: 'truefalse', label: '判断', count: bank.truefalse_count },
+        ].filter((t) => t.count > 0);
+
+        if (types.length === 0) {
+            c.innerHTML = '<div class="empty-state"><p>这个题库还没有题目</p></div>';
+            return;
+        }
+
+        /** 当前筛选下的总题数（取题库的预计算统计，不额外查表） */
+        const currentTotal = () => {
+            const t = types.find((x) => x.key === state.type);
+            return t ? t.count : 0;
+        };
+
+        /** 正确答案既可能是下标也可能是下标数组；解析失败时服务端给 -1 */
+        const toIndexArray = (v) => {
+            if (v === null || v === undefined) return [];
+            return Array.isArray(v) ? v : [v];
+        };
+
+        /** 取下一页；同一时刻只允许一个请求在飞 */
+        const loadNext = async () => {
+            if (state.loading) return;
+            if (state.questions.length >= currentTotal()) {
+                state.done = true;
+                return;
+            }
+
+            const epoch = state.epoch;
+            state.loading = true;
+            state.error = '';
+            render();
+
+            try {
+                const res = await API.getQuestions({
+                    bank_id: bank.id,
+                    type: state.type || undefined,
+                    page: Math.floor(state.questions.length / PAGE_SIZE) + 1,
+                    per_page: PAGE_SIZE,
+                });
+                if (epoch !== state.epoch) return; // 期间切换了题型，丢弃
+
+                // offset 分页在题目被删时可能重叠，按 id 去重
+                const seen = new Set(state.questions.map((q) => q.id));
+                let added = 0;
+                for (const q of res.items || []) {
+                    if (!seen.has(q.id)) {
+                        state.questions.push(q);
+                        seen.add(q.id);
+                        added++;
+                    }
+                }
+                // 整页都是重复/已删题目时收手，避免反复请求同一页
+                if (added === 0) state.done = true;
+            } catch (error) {
+                if (epoch === state.epoch) state.error = error.message;
+            } finally {
+                if (epoch === state.epoch) {
+                    state.loading = false;
+                    state.done = state.questions.length >= currentTotal();
+                    render();
+                }
+            }
+        };
+
+        const goto = (target) => {
+            const total = currentTotal();
+            if (target < 0 || target >= total) return;
+            // 下一页还没回来时不越过已加载范围，避免连点跳题
+            if (target >= state.questions.length && state.loading) return;
+
+            state.idx = target;
+            render();
+            if (!state.done && target >= state.questions.length - PREFETCH_AT) loadNext();
+        };
+
+        const switchType = (type) => {
+            if (type === state.type) return;
+            state.type = type;
+            state.epoch++; // 让在飞请求作废
+            state.questions = [];
+            state.idx = 0;
+            state.loading = false;
+            state.done = false;
+            state.error = '';
+            render();
+            loadNext();
+        };
+
+        const render = () => {
+            const total = currentTotal();
+            const q = state.questions[state.idx];
+            const answerIdxs = q ? toIndexArray(q.answer) : [];
+            const answerOk = answerIdxs.length > 0 && answerIdxs.every((i) => i >= 0);
+            const pct = total > 0 ? Math.round(((state.idx + 1) / total) * 100) : 0;
+
+            let navHtml = '';
+            for (let i = 0; i < state.questions.length; i++) {
+                navHtml += `<button class="nav-q${i === state.idx ? ' current' : ''}" data-idx="${i}">${i + 1}</button>`;
+            }
+
+            const filterHtml = types
+                .map(
+                    (t) =>
+                        `<button class="btn btn-sm ${
+                            t.key === state.type ? 'btn-primary' : 'btn-secondary'
+                        }" data-type="${t.key}">${t.label} ${t.count}</button>`
+                )
+                .join('');
+
+            const cardHtml = q
+                ? `
+                    <div class="answer-card">
+                        <div class="answer-card-header">
+                            <span class="question-type-badge">${esc(this.getTypeLabel(q.type))}</span>
+                        </div>
+                        <div class="answer-card-stem">${esc(q.stem)}</div>
+                        <div class="answer-options">
+                            ${q.options
+                                .map((opt, oi) => {
+                                    const isCorrect = answerOk && answerIdxs.indexOf(oi) >= 0;
+                                    return `<div class="answer-option${isCorrect ? ' correct' : ''}"><strong>${String.fromCharCode(65 + oi)}.</strong> <span class="answer-option-text">${esc(opt)}</span> ${isCorrect ? Icons.check : ''}</div>`;
+                                })
+                                .join('')}
+                        </div>
+                        ${
+                            answerOk
+                                ? ''
+                                : '<div class="answer-explanation">本题答案数据异常，无法标注正确选项</div>'
+                        }
+                        ${
+                            q.explanation
+                                ? `<div class="answer-explanation"><strong>解析：</strong>${esc(q.explanation)}</div>`
+                                : ''
+                        }
+                    </div>`
+                : '<div class="loading">加载中…</div>';
+
+            c.innerHTML = `
+                ${this.banner({ icon: 'book', title: '背题', subtitle: bank.name })}
+                <div class="practice-layout">
+                    <div class="practice-main">
+                        <div class="practice-progress">
+                            <div class="progress-header">
+                                <span class="progress-label">第 ${state.idx + 1} / 共 ${total} 题</span>
+                                <span class="progress-count tnum">${pct}%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+                        </div>
+                        ${cardHtml}
+                        ${
+                            state.error
+                                ? `<div class="error-msg">加载失败：${esc(
+                                      state.error
+                                  )} <button class="btn btn-sm btn-secondary" id="recite-retry">重试</button></div>`
+                                : ''
+                        }
+                        <div class="practice-actions">
+                            <button class="btn btn-secondary" ${
+                                state.idx === 0 ? 'disabled' : ''
+                            } id="btn-prev">${Icons['arrow-left']} 上一题</button>
+                            <button class="btn btn-primary" ${
+                                state.idx >= total - 1 ? 'disabled' : ''
+                            } id="btn-next">${state.loading ? '加载中…' : '下一题'} ${Icons['arrow-right']}</button>
+                        </div>
+                    </div>
+                    <div class="practice-sidebar">
+                        <div class="sidebar-title">题型</div>
+                        <div class="recite-filter">${filterHtml}</div>
+                        <div class="sidebar-title">题号</div>
+                        <div class="question-nav">${navHtml}</div>
+                        <div class="sidebar-stats">
+                            <span class="text-secondary">已加载 <b class="tnum">${
+                                state.questions.length
+                            }</b> / 共 <b class="tnum">${total}</b></span>
+                        </div>
+                    </div>
+                </div>`;
+
+            c.querySelectorAll('.nav-q').forEach((btn) => {
+                btn.addEventListener('click', () => goto(parseInt(btn.dataset.idx, 10)));
+            });
+            c.querySelectorAll('.recite-filter .btn').forEach((btn) => {
+                btn.addEventListener('click', () => switchType(btn.dataset.type));
+            });
+            document.getElementById('btn-prev').addEventListener('click', () => goto(state.idx - 1));
+            document.getElementById('btn-next').addEventListener('click', () => goto(state.idx + 1));
+            const retry = document.getElementById('recite-retry');
+            if (retry) retry.addEventListener('click', () => loadNext());
+        };
+
+        render();
+
+        // 键盘左右键切题；handleRoute() 每次都会先移除上一页注册的处理器
+        this._practiceKeyHandler = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                goto(state.idx - 1);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                goto(state.idx + 1);
+            }
+        };
+        document.addEventListener('keydown', this._practiceKeyHandler);
+
+        loadNext();
     },
 
     async loadPracticeResult() {
