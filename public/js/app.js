@@ -249,6 +249,106 @@ const App = {
         });
     },
 
+    initLogout() {
+        const btn = document.getElementById('logout-btn');
+        if (!btn || btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.onclick = async () => {
+            try {
+                await API.logout();
+            } catch (e) {
+                /* 登出应幂等，忽略失败 */
+            }
+            this.currentUser = null;
+            this.showLoginPage();
+        };
+    },
+
+    handleRoute() {
+        if (this._practiceKeyHandler) {
+            document.removeEventListener('keydown', this._practiceKeyHandler);
+            this._practiceKeyHandler = null;
+        }
+
+        const hash = window.location.hash || '#/';
+        const fullPath = hash.slice(1);
+        const path = fullPath.split('?')[0];
+
+        document.querySelectorAll('.nav-item').forEach((el) => {
+            el.classList.remove('active');
+            const href = (el.getAttribute('href') || '').slice(1);
+            if (href && (path === href || (href !== '/' && path.startsWith(href)))) {
+                el.classList.add('active');
+            }
+        });
+
+        if (path === '/' || path === '') this.loadDashboard();
+        else if (path === '/banks') this.loadBanks();
+        else if (path.match(/^\/banks\/\d+$/)) this.loadBankDetail(path.split('/')[2], 1);
+        else if (path === '/questions/new') this.loadQuestionForm();
+        else if (path.match(/^\/questions\/\d+\/edit$/)) this.loadQuestionForm(path.split('/')[2]);
+        else if (path === '/practice/pick') this.loadPracticePick();
+        else if (path === '/practice/do') this.loadPracticeDo();
+        else if (path === '/practice/result') this.loadPracticeResult();
+        else if (path === '/recite') this.loadRecite();
+        else if (path === '/wrongbook') this.loadWrongBook();
+        else if (path === '/sessions') this.loadSessions(1);
+        else if (path.match(/^\/sessions\/\d+$/)) this.loadSessionDetail(path.split('/')[2]);
+        else if (path === '/import') this.loadImport();
+        else if (path === '/users') this.loadUsers();
+        else if (path === '/profile') this.loadProfile();
+        else this.load404();
+    },
+
+    /** 安全地取 hash 上的查询参数（F10：无 ? 时不再传 undefined） */
+    hashParams() {
+        const hash = window.location.hash || '';
+        const qi = hash.indexOf('?');
+        return new URLSearchParams(qi === -1 ? '' : hash.slice(qi + 1));
+    },
+
+    getTypeLabel(type) {
+        const map = { single: '单选题', multiple: '多选题', truefalse: '判断题' };
+        return map[type] || type;
+    },
+
+    /**
+     * 页面 banner。
+     *
+     * 每个分页面顶部统一使用（答题页除外 —— 那里要把纵向空间全留给题目）。
+     * 背景由渐变、网格、光晕、文字遮罩四层构成，图标取自 Icons 模块，
+     * 因此图标仍然只有一份定义。
+     *
+     * @param {object} o
+     * @param {string} o.icon       Icons 中的图标名
+     * @param {string} o.title      标题
+     * @param {string} [o.subtitle] 副标题
+     * @param {string} [o.actions]  右侧操作区 HTML
+     */
+    banner({ icon, title, subtitle, actions }) {
+        return `
+            <section class="page-banner">
+                <div class="page-banner-bg" aria-hidden="true"></div>
+                <div class="page-banner-scrim" aria-hidden="true"></div>
+                <div class="page-banner-inner">
+                    <div class="page-banner-icon">${Icons[icon] || Icons.brand}</div>
+                    <div class="page-banner-text">
+                        <h1>${esc(title)}</h1>
+                        ${subtitle ? `<p>${esc(subtitle)}</p>` : ''}
+                    </div>
+                    ${actions ? `<div class="page-banner-actions">${actions}</div>` : ''}
+                </div>
+            </section>
+        `;
+    },
+
+    /** 正确率显示；F6：total 为 0 时不再出现 NaN% */
+    accuracyText(correct, total) {
+        if (!total || total <= 0) return '—';
+        return ((correct / total) * 100).toFixed(1) + '%';
+    },
+
+    escapeHtml: (v) => (window.esc ? esc(v) : String(v == null ? '' : v)),
     // ══════════════════════════════════════════════════════════
     // 仪表盘
     // ══════════════════════════════════════════════════════════
