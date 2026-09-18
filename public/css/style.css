@@ -1063,6 +1063,26 @@ input[type="radio"]:focus-visible {
     color: var(--ink-500);
 }
 
+/* 错题本的操作行：练习与背题两个入口平级，不再塞进 Banner */
+.wrongbook-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-5);
+}
+
+.wrongbook-actions-hint {
+    font-size: 13px;
+    color: var(--ink-500);
+}
+
+.wrongbook-actions-buttons {
+    display: flex;
+    gap: var(--space-3);
+}
+
 .filter-field .form-input {
     min-width: 140px;
     padding: var(--space-2) var(--space-3);

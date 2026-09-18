@@ -1187,9 +1187,10 @@ const App = {
             }
 
             page.innerHTML = `
-                <div class="m-flex-between m-mb-16">
-                    <div class="m-text-sm m-text-muted tnum">共 ${records.length} 道错题</div>
+                <div class="m-text-sm m-text-muted tnum m-mb-12">共 ${records.length} 道错题</div>
+                <div class="m-wrong-actions">
                     <button class="m-btn m-btn-primary m-btn-sm" id="wrong-practice">练习错题</button>
+                    <button class="m-btn m-btn-secondary m-btn-sm" id="wrong-recite">学习错题</button>
                 </div>
                 ${records
                     .map(
@@ -1221,6 +1222,10 @@ const App = {
                 } catch (err) {
                     alert(err.message);
                 }
+            });
+
+            document.getElementById('wrong-recite').addEventListener('click', () => {
+                window.location.hash = '#/recite?source=wrongbook';
             });
 
             page.querySelectorAll('[data-remove-wrong]').forEach((b) => {
@@ -1491,20 +1496,74 @@ const App = {
         // 左右拖动切题：向浏览器声明横向手势由页面自己处理
         page.classList.add('m-page--swipeable');
 
-        const bankId = parseInt(this.hashParams().get('bank_id') || '', 10);
-        if (!bankId) {
-            page.innerHTML = '<div class="m-empty"><p>缺少题库参数</p></div>';
-            return;
-        }
+        // 两个数据源：`#/recite?bank_id=N`（题库，分页拉取）与
+        // `#/recite?source=wrongbook`（错题本，一次性载入）。渲染与翻页状态机
+        // 共用，源之间的差异只收敛在 source 上。
+        const params = this.hashParams();
+        const fromWrongBook = params.get('source') === 'wrongbook';
 
         page.innerHTML = '<div class="m-loading"><div class="m-spinner"></div>加载中...</div>';
 
-        let bank;
-        try {
-            bank = await API.getBank(bankId);
-        } catch (err) {
-            page.innerHTML = `<div class="m-empty"><p>${esc(err.message)}</p></div>`;
-            return;
+        let source;
+        if (fromWrongBook) {
+            let records;
+            try {
+                records = await API.getWrongBook();
+            } catch (err) {
+                page.innerHTML = `<div class="m-empty"><p>${esc(err.message)}</p></div>`;
+                return;
+            }
+            // 错题本接口已带 stem/type/options/answer/explanation，不必逐题回查
+            const all = records.map((r) => ({
+                id: r.question_id,
+                type: r.type,
+                stem: r.stem,
+                options: r.options,
+                answer: r.answer,
+                explanation: r.explanation,
+            }));
+            const countOf = (key) => (key ? all.filter((q) => q.type === key).length : all.length);
+            source = {
+                title: '错题本',
+                bankId: null,
+                page: (type) => (type ? all.filter((q) => q.type === type) : all),
+                types: [
+                    { key: '', label: '全部', count: countOf('') },
+                    { key: 'single', label: '单选', count: countOf('single') },
+                    { key: 'multiple', label: '多选', count: countOf('multiple') },
+                    { key: 'truefalse', label: '判断', count: countOf('truefalse') },
+                ].filter((t) => t.count > 0),
+                total: (type) => countOf(type),
+            };
+        } else {
+            const bankId = parseInt(params.get('bank_id') || '', 10);
+            if (!bankId) {
+                page.innerHTML = '<div class="m-empty"><p>缺少题库参数</p></div>';
+                return;
+            }
+            let bank;
+            try {
+                bank = await API.getBank(bankId);
+            } catch (err) {
+                page.innerHTML = `<div class="m-empty"><p>${esc(err.message)}</p></div>`;
+                return;
+            }
+            const types = [
+                { key: '', label: '全部', count: bank.question_count },
+                { key: 'single', label: '单选', count: bank.single_count },
+                { key: 'multiple', label: '多选', count: bank.multiple_count },
+                { key: 'truefalse', label: '判断', count: bank.truefalse_count },
+            ].filter((t) => t.count > 0);
+            source = {
+                title: bank.name,
+                bankId,
+                page: null,
+                types,
+                total: (type) => {
+                    const t = types.find((x) => x.key === type);
+                    return t ? t.count : 0;
+                },
+            };
         }
 
         const self = this;
@@ -1512,7 +1571,7 @@ const App = {
         const PREFETCH_AT = 20; // 距已加载尾部还剩这么多题时预取下一页
 
         const state = {
-            bank: bank,
+            source: source.title,
             type: '', // '' = 全部
             questions: [],
             idx: 0,
@@ -1524,23 +1583,17 @@ const App = {
         this.reciteData = state;
 
         // 只保留题量非空的题型，避免出现点进去空空如也的筛选项
-        const types = [
-            { key: '', label: '全部', count: bank.question_count },
-            { key: 'single', label: '单选', count: bank.single_count },
-            { key: 'multiple', label: '多选', count: bank.multiple_count },
-            { key: 'truefalse', label: '判断', count: bank.truefalse_count },
-        ].filter((t) => t.count > 0);
+        const types = source.types;
 
         if (types.length === 0) {
-            page.innerHTML = '<div class="m-empty"><p>这个题库还没有题目</p></div>';
+            page.innerHTML = fromWrongBook
+                ? '<div class="m-empty"><p>错题本是空的</p></div>'
+                : '<div class="m-empty"><p>这个题库还没有题目</p></div>';
             return;
         }
 
-        /** 当前筛选下的总题数（取题库的预计算统计，不额外查表） */
-        const currentTotal = () => {
-            const t = types.find((x) => x.key === state.type);
-            return t ? t.count : 0;
-        };
+        /** 当前筛选下的总题数 */
+        const currentTotal = () => source.total(state.type);
 
         /** 正确答案既可能是下标也可能是指标数组；解析失败时服务端给 -1 */
         const toIndexArray = (v) => {
@@ -1556,6 +1609,15 @@ const App = {
                 return;
             }
 
+            // 错题本：题目已全在内存里，按当前题型一次性补齐
+            if (source.page) {
+                state.questions = source.page(state.type);
+                state.done = true;
+                state.loading = false;
+                render();
+                return;
+            }
+
             const epoch = state.epoch;
             state.loading = true;
             state.error = '';
@@ -1563,7 +1625,7 @@ const App = {
 
             try {
                 const res = await API.getQuestions({
-                    bank_id: bank.id,
+                    bank_id: source.bankId,
                     type: state.type || undefined,
                     page: Math.floor(state.questions.length / PAGE_SIZE) + 1,
                     per_page: PAGE_SIZE,

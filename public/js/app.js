@@ -1288,22 +1288,85 @@ const App = {
      * 与移动端 public/mobile/js/app.js 的 renderRecite 保持同一套行为：
      * 整库通背、按题型筛选、每页 200 题续载、接近尾部预取。
      */
+    /**
+     * 背题模式。
+     *
+     * 两个数据源：`#/recite?bank_id=N`（题库，分页拉取）与
+     * `#/recite?source=wrongbook`（错题本，一次性载入）。
+     * 渲染与翻页状态机是共用的，源之间的差异只收敛在 source 上：
+     * title / types / total(type) / page(type)（page 为 null 表示走分页接口）。
+     */
     async loadRecite() {
         const c = document.getElementById('page-container');
-        const bankId = parseInt(this.hashParams().get('bank_id') || '', 10);
-        if (!bankId) {
-            c.innerHTML = '<div class="error-msg">缺少题库参数</div>';
-            return;
-        }
+        const params = this.hashParams();
+        const fromWrongBook = params.get('source') === 'wrongbook';
 
         c.innerHTML = '<div class="loading">加载中…</div>';
 
-        let bank;
-        try {
-            bank = await API.getBank(bankId);
-        } catch (error) {
-            c.innerHTML = `<div class="error-msg">${esc(error.message)}</div>`;
-            return;
+        let source;
+        if (fromWrongBook) {
+            let records;
+            try {
+                records = await API.getWrongBook();
+            } catch (error) {
+                c.innerHTML = `<div class="error-msg">${esc(error.message)}</div>`;
+                return;
+            }
+            // 错题本接口已经带上 stem/type/options/answer/explanation，
+            // 不必再逐题回查题库
+            const all = records.map((r) => ({
+                id: r.question_id,
+                type: r.type,
+                stem: r.stem,
+                options: r.options,
+                answer: r.answer,
+                explanation: r.explanation,
+            }));
+            const countOf = (key) => (key ? all.filter((q) => q.type === key).length : all.length);
+            source = {
+                title: '错题本',
+                icon: 'circle-x',
+                bankId: null,
+                page: (type) => (type ? all.filter((q) => q.type === type) : all),
+                types: [
+                    { key: '', label: '全部', count: countOf('') },
+                    { key: 'single', label: '单选', count: countOf('single') },
+                    { key: 'multiple', label: '多选', count: countOf('multiple') },
+                    { key: 'truefalse', label: '判断', count: countOf('truefalse') },
+                ].filter((t) => t.count > 0),
+                total: (type) => countOf(type),
+            };
+        } else {
+            const bankId = parseInt(params.get('bank_id') || '', 10);
+            if (!bankId) {
+                c.innerHTML = '<div class="error-msg">缺少题库参数</div>';
+                return;
+            }
+            let bank;
+            try {
+                bank = await API.getBank(bankId);
+            } catch (error) {
+                c.innerHTML = `<div class="error-msg">${esc(error.message)}</div>`;
+                return;
+            }
+            const types = [
+                { key: '', label: '全部', count: bank.question_count },
+                { key: 'single', label: '单选', count: bank.single_count },
+                { key: 'multiple', label: '多选', count: bank.multiple_count },
+                { key: 'truefalse', label: '判断', count: bank.truefalse_count },
+            ].filter((t) => t.count > 0);
+            source = {
+                title: bank.name,
+                icon: 'book',
+                bankId,
+                page: null,
+                types,
+                // 总题数取题库的预计算统计，不额外查表
+                total: (type) => {
+                    const t = types.find((x) => x.key === type);
+                    return t ? t.count : 0;
+                },
+            };
         }
 
         const PAGE_SIZE = 200; // 服务端 per_page 硬上限
@@ -1320,23 +1383,17 @@ const App = {
         };
 
         // 只保留题量非空的题型，避免出现点进去空空如也的筛选项
-        const types = [
-            { key: '', label: '全部', count: bank.question_count },
-            { key: 'single', label: '单选', count: bank.single_count },
-            { key: 'multiple', label: '多选', count: bank.multiple_count },
-            { key: 'truefalse', label: '判断', count: bank.truefalse_count },
-        ].filter((t) => t.count > 0);
+        const types = source.types;
 
         if (types.length === 0) {
-            c.innerHTML = '<div class="empty-state"><p>这个题库还没有题目</p></div>';
+            c.innerHTML = fromWrongBook
+                ? '<div class="empty-state"><p>错题本是空的，先去练几道题吧</p></div>'
+                : '<div class="empty-state"><p>这个题库还没有题目</p></div>';
             return;
         }
 
-        /** 当前筛选下的总题数（取题库的预计算统计，不额外查表） */
-        const currentTotal = () => {
-            const t = types.find((x) => x.key === state.type);
-            return t ? t.count : 0;
-        };
+        /** 当前筛选下的总题数 */
+        const currentTotal = () => source.total(state.type);
 
         /** 正确答案既可能是下标也可能是下标数组；解析失败时服务端给 -1 */
         const toIndexArray = (v) => {
@@ -1352,6 +1409,15 @@ const App = {
                 return;
             }
 
+            // 错题本：题目已经全在内存里，按当前题型一次性补齐
+            if (source.page) {
+                state.questions = source.page(state.type);
+                state.done = true;
+                state.loading = false;
+                render();
+                return;
+            }
+
             const epoch = state.epoch;
             state.loading = true;
             state.error = '';
@@ -1359,7 +1425,7 @@ const App = {
 
             try {
                 const res = await API.getQuestions({
-                    bank_id: bank.id,
+                    bank_id: source.bankId,
                     type: state.type || undefined,
                     page: Math.floor(state.questions.length / PAGE_SIZE) + 1,
                     per_page: PAGE_SIZE,
@@ -1466,7 +1532,7 @@ const App = {
                 : '<div class="loading">加载中…</div>';
 
             c.innerHTML = `
-                ${this.banner({ icon: 'book', title: '背题', subtitle: bank.name })}
+                ${this.banner({ icon: source.icon, title: '背题', subtitle: source.title })}
                 <div class="practice-layout">
                     <div class="practice-main">
                         <div class="practice-progress">
@@ -1608,14 +1674,18 @@ const App = {
         try {
             const records = await API.getWrongBook();
             c.innerHTML = `
-                ${this.banner({
-                    icon: 'circle-x',
-                    title: '错题本',
-                    subtitle: `共 ${records.length} 道错题`,
-                    actions: records.length > 0
-                        ? `<button class="btn btn-primary" id="btn-wrong-practice">练习错题</button>`
-                        : '',
-                })}
+                ${this.banner({ icon: 'circle-x', title: '错题本', subtitle: `共 ${records.length} 道错题` })}
+                ${
+                    records.length > 0
+                        ? `<div class="card"><div class="card-body wrongbook-actions">
+                               <div class="wrongbook-actions-hint">可以直接抽题练习，也可以进入背题模式逐题看解析。</div>
+                               <div class="wrongbook-actions-buttons">
+                                   <button class="btn btn-primary" id="btn-wrong-practice">练习错题</button>
+                                   <button class="btn btn-secondary" id="btn-wrong-recite">学习错题</button>
+                               </div>
+                           </div></div>`
+                        : ''
+                }
                 <div class="card"><div class="card-body">
                     ${
                         records.length === 0
@@ -1642,6 +1712,13 @@ const App = {
 
             const btn = document.getElementById('btn-wrong-practice');
             if (btn) btn.onclick = () => this.startWrongPractice();
+
+            const btnRecite = document.getElementById('btn-wrong-recite');
+            if (btnRecite) {
+                btnRecite.onclick = () => {
+                    window.location.hash = '#/recite?source=wrongbook';
+                };
+            }
 
             c.querySelectorAll('[data-remove-wrong]').forEach((b) => {
                 b.onclick = () => this.removeWrong(b.dataset.removeWrong);

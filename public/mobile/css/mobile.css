@@ -2055,6 +2055,17 @@ textarea {
 }
 
 /* 推荐复习：有错题时用品牌浅底把它从白卡里拎出来 */
+/* 错题本的两个入口平级并排 */
+.m-wrong-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.m-wrong-actions .m-btn {
+    flex: 1;
+}
+
 .m-review-card.is-active {
     border-color: var(--brand-400);
     background: var(--brand-50);
