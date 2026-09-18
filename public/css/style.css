@@ -578,7 +578,7 @@ input[type="radio"]:focus-visible {
     flex-direction: column;
     height: 100vh;
     color: var(--ink-700);
-    background: var(--surface);
+    background: var(--surface-sunken);
     border-right: 1px solid var(--ink-300);
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
@@ -640,8 +640,8 @@ input[type="radio"]:focus-visible {
 /* ── 可选元素契约：导航项 ─────────────────────────────────────── */
 
 /* 侧边栏导航：无边框 + 底纹（文件头第 6 条的例外说明）。
-   常态背景用 transparent 而非 --surface：侧栏本身就是白底，主区看起来一致；
-   而页脚是浅灰底，若留白底会在灰底上凭空多出一块无边框白块。 */
+   常态背景用 transparent 而非 --surface：侧栏本身就是灰底，而页脚也是同色，
+   两处一致。 */
 .nav-item {
     display: flex;
     align-items: center;
@@ -652,9 +652,20 @@ input[type="radio"]:focus-visible {
     font-weight: 500;
     color: var(--ink-700);
     background: transparent;
+    border: none;
     border-radius: var(--radius-md);
     text-decoration: none;
     transition: var(--transition);
+    /* 下面几个是给「退出登录」那个 <button> 用的（它对 UA 默认值的继承与 <a> 不同）：
+         - font-family：<button> 不继承字体，不补会变成 UA 默认字体
+         - line-height：<button> 也不继承，UA 是 normal，会让它比 <a> 矮 2px
+         - cursor：<button> 的 UA 默认是 default，不补会与相邻的 <a> 不一致
+         - border: none（见上）：<button> 的 UA 默认边框是 2px outset，
+           不显式清零会让它比 <a> 宽 2px、内容右移 2px
+       对原本就是 <a> 的导航项没有影响。 */
+    font-family: inherit;
+    line-height: inherit;
+    cursor: pointer;
 }
 
 .nav-item:hover {
@@ -682,23 +693,6 @@ input[type="radio"]:focus-visible {
     padding: var(--space-4);
     background: var(--surface-sunken);
     border-top: 1px solid var(--ink-300);
-}
-
-/* 「退出登录」用了 .btn-block（宽度撑满），而 .btn-block 会顺带把内容居中
-   （justify-content: center），于是图标与文字整体居中，跟正上方同样撑满但
-   左对齐的 .nav-item 错开。这里按 .nav-item 的内容列重新对齐：
-     - flex-start：不再居中
-     - 图标与文字的间距从 .btn 的 space-2 改为 .nav-item 的 space-3
-   两边左内边距都是 space-3，因此图标与文字会与「个人设置」逐列对齐。
-   （.nav-item 去掉 2px 边框后，原先用来补齐那 2px 的透明边框也一并去掉。）
-
-   字号单独指定 16px：它带 .btn-sm（13px），与 .nav-item 的 16px 不一致。
-   这里没法直接复用 .nav-item 的字号值，所以两处需同步 —— 1280px 断点下
-   .nav-item 降为 14px，这里也一并降，避免窄屏又出现字号差。 */
-.sidebar-footer .btn-block {
-    justify-content: flex-start;
-    gap: var(--space-3);
-    font-size: 16px;
 }
 
 .user-card {
@@ -2263,13 +2257,6 @@ input[type="radio"]:focus-visible {
     .nav-item {
         gap: var(--space-2);
         padding: var(--space-2) var(--space-3);
-        font-size: 14px;
-    }
-
-    /* 「退出登录」不在 .nav-item 那套里，字号与「图标-文字」间距都得跟着一起降，
-       否则窄屏下页脚两项会既差字号、文字又右移 4px */
-    .sidebar-footer .btn-block {
-        gap: var(--space-2);
         font-size: 14px;
     }
 

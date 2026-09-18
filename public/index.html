@@ -236,7 +236,12 @@
                         <span class="icon" data-icon="user"></span>
                         <span>个人设置</span>
                     </a>
-                    <button id="logout-btn" class="btn btn-ghost btn-sm btn-block">
+                    <!-- 复用 .nav-item：页脚两项共用同一套尺寸（内边距/圆角/字号），
+                         否则「退出登录」会因 .btn-sm 而矮一截、字号小一档。
+                         它仍是 <button>（动作，不是导航），用 nav-item 只取样式；
+                         initLogout() 按 id 绑定，handleRoute() 的导航高亮按 href
+                         匹配，按钮没有 href，因此不会被误标为 .active。 -->
+                    <button id="logout-btn" class="nav-item">
                         <span class="icon" data-icon="log-out"></span>
                         退出登录
                     </button>
