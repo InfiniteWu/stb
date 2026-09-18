@@ -9,6 +9,18 @@
  *   M5  checkAuth 与 route 首屏各发一次 getMe → 合并为一次
  *   M6  无「不会」按钮、无未答统计 → 与桌面端对齐
  */
+
+/**
+ * 是否「未作答」——与服务端 lib/grade.ts 的 isUnanswered 同一口径：
+ * null / undefined / 空数组都算未作答。
+ *
+ * 注意空数组：多选题把已选项全部取消后得到 `[]`，界面各处原先用
+ * `selected !== null` 判断会把它算成「已答」，而服务端计为「未答」，
+ * 于是交卷后的结果页与作答时的「未答」统计对不上。这里统一按服务端口径。
+ */
+const isUnansweredSelection = (selected) =>
+    selected === null || selected === undefined || (Array.isArray(selected) && selected.length === 0);
+
 const App = {
     currentUser: null,
     practiceData: null,
@@ -435,7 +447,9 @@ const App = {
         const self = this;
 
         const answeredCount = () =>
-            Object.keys(answers).filter((k) => answers[k] && answers[k].selected !== null).length;
+            Object.keys(answers).filter(
+                (k) => answers[k] && !isUnansweredSelection(answers[k].selected)
+            ).length;
 
         const render = () => {
             const q = data.questions[state.idx];
@@ -454,11 +468,15 @@ const App = {
                         <span class="m-badge">${esc(this.getTypeLabel(q.type))}</span>
                     </div>
                     <div class="m-question-stem">${esc(q.stem)}</div>
-                    <div class="m-question-options">
+                    <div class="m-question-options" role="${
+                        q.type === 'multiple' ? 'group' : 'radiogroup'
+                    }" aria-label="${esc(this.getTypeLabel(q.type))}选项">
                         ${q.options
                             .map(
                                 (opt, i) => `
-                            <div class="m-option ${isSelected(i) ? 'selected' : ''}" data-idx="${i}">
+                            <div class="m-option ${isSelected(i) ? 'selected' : ''}" data-idx="${i}"
+                                 role="${q.type === 'multiple' ? 'checkbox' : 'radio'}"
+                                 aria-checked="${isSelected(i) ? 'true' : 'false'}">
                                 <div class="m-option-letter">${String.fromCharCode(65 + i)}</div>
                                 <div class="m-option-text">${esc(opt)}</div>
                             </div>`
@@ -542,11 +560,14 @@ const App = {
         for (let i = 0; i < total; i++) {
             const q = data.questions[i];
             const a = answers[q.id];
-            const answered = a !== undefined && a.selected !== null;
+            const answered = a !== undefined && !isUnansweredSelection(a.selected);
+            const isCurrent = i === state.idx;
             let cls = 'm-sheet-btn';
             if (answered) cls += ' answered';
-            if (i === state.idx) cls += ' current';
-            navHtml += `<button class="${cls}" data-idx="${i}">${i + 1}</button>`;
+            if (isCurrent) cls += ' current';
+            navHtml += `<button class="${cls}" data-idx="${i}" aria-label="第 ${i + 1} 题，${
+                answered ? '已答' : '未答'
+            }"${isCurrent ? ' aria-current="true"' : ''}>${i + 1}</button>`;
         }
 
         const mask = document.createElement('div');
@@ -619,6 +640,7 @@ const App = {
         for (let i = 0; i < total; i++) {
             const a = answers[i];
             const unanswered = a.is_correct === null;
+            let state = '未作答';
             let cls = 'm-sheet-btn';
             if (unanswered) {
                 unansweredCount++;
@@ -626,12 +648,17 @@ const App = {
             } else if (a.is_correct) {
                 correctCount++;
                 cls += ' correct';
+                state = '正确';
             } else {
                 wrongCount++;
                 cls += ' wrong';
+                state = '错误';
             }
-            if (i === currentIdx) cls += ' current';
-            navHtml += `<button class="${cls}" data-idx="${i}">${i + 1}</button>`;
+            const isCurrent = i === currentIdx;
+            if (isCurrent) cls += ' current';
+            navHtml += `<button class="${cls}" data-idx="${i}" aria-label="第 ${i + 1} 题，${state}"${
+                isCurrent ? ' aria-current="true"' : ''
+            }>${i + 1}</button>`;
         }
 
         const mask = document.createElement('div');
@@ -803,6 +830,11 @@ const App = {
             if (q.shuffle_token) item.shuffle_token = q.shuffle_token;
             return item;
         });
+
+        // 有未作答时先确认：误点一次就会结束本次练习。
+        // 未作答按服务端口径判定，与结果页的「未答」数一致。
+        const unanswered = payload.filter((p) => isUnansweredSelection(p.selected)).length;
+        if (unanswered > 0 && !confirm(`还有 ${unanswered} 道题未作答，确定交卷吗？`)) return;
 
         try {
             this.practiceResult = await API.submitPractice({
@@ -1351,7 +1383,9 @@ const App = {
         let navHtml = '';
         for (let i = 0; i < loaded; i++) {
             const curCls = i === currentIdx ? ' current' : '';
-            navHtml += `<button class="m-sheet-btn${curCls}" data-idx="${i}">${i + 1}</button>`;
+            navHtml += `<button class="m-sheet-btn${curCls}" data-idx="${i}" aria-label="第 ${
+                i + 1
+            } 题"${curCls ? ' aria-current="true"' : ''}>${i + 1}</button>`;
         }
 
         drawer.innerHTML = `

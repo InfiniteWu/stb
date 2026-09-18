@@ -578,7 +578,9 @@ input[type="radio"]:focus-visible {
     flex-direction: column;
     height: 100vh;
     color: var(--ink-700);
-    background: var(--surface-sunken);
+    /* 整个左侧边（导航 + 页脚）用同一块比页面底色更深一档的暖灰，
+       侧栏因此读作一整块面板，而不是「比内容区略深的导航栏」。 */
+    background: var(--surface-deep);
     border-right: 1px solid var(--ink-300);
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
@@ -691,7 +693,7 @@ input[type="radio"]:focus-visible {
 
 .sidebar-footer {
     padding: var(--space-4);
-    background: var(--surface-sunken);
+    background: var(--surface-deep);
     border-top: 1px solid var(--ink-300);
 }
 

@@ -15,6 +15,18 @@
  *   F11 结果页不显示未答数；未校验 bankId
  *   F12 列表无分页；导入无进度 → 分页控件 + 分批进度条
  */
+
+/**
+ * 是否「未作答」——与服务端 lib/grade.ts 的 isUnanswered 保持同一口径：
+ * null / undefined / 空数组都算未作答。
+ *
+ * 注意空数组这一条：多选题里把已选项全部取消后会得到 `[]`，界面各处原先用
+ * `selected !== null` 判断，会把它算成「已答」，而服务端计为「未答」，
+ * 导致交卷后的结果页与作答时的「未答」统计对不上。这里统一按服务端口径。
+ */
+const isUnansweredSelection = (selected) =>
+    selected === null || selected === undefined || (Array.isArray(selected) && selected.length === 0);
+
 const App = {
     currentUser: null,
 
@@ -871,10 +883,14 @@ const App = {
             let navHtml = '';
             for (let i = 0; i < total; i++) {
                 const qid = data.questions[i].id;
-                const answered = answers[qid] !== undefined && answers[qid].selected !== null;
+                const answered =
+                    answers[qid] !== undefined && !isUnansweredSelection(answers[qid].selected);
+                const isCurrent = i === idx;
                 const cls =
-                    (i === idx ? 'nav-q current' : 'nav-q') + (answered ? ' answered' : '');
-                navHtml += `<button class="${cls}" data-idx="${i}">${i + 1}</button>`;
+                    (isCurrent ? 'nav-q current' : 'nav-q') + (answered ? ' answered' : '');
+                navHtml += `<button class="${cls}" data-idx="${i}" aria-label="第 ${i + 1} 题，${
+                    answered ? '已答' : '未答'
+                }"${isCurrent ? ' aria-current="true"' : ''}>${i + 1}</button>`;
             }
 
             const isSelected = (i) =>
@@ -930,7 +946,7 @@ const App = {
             c.querySelector('.progress-fill').style.width = ((idx + 1) / total) * 100 + '%';
 
             const answeredCount = Object.keys(answers).filter(
-                (k) => answers[k] && answers[k].selected !== null
+                (k) => answers[k] && !isUnansweredSelection(answers[k].selected)
             ).length;
             document.getElementById('stat-answered').textContent = answeredCount;
             document.getElementById('stat-unanswered').textContent = total - answeredCount;
@@ -1019,6 +1035,11 @@ const App = {
                 if (q.shuffle_token) item.shuffle_token = q.shuffle_token;
                 return item;
             });
+
+            // 有未作答时先确认：误点一次就会结束本次练习。
+            // 未作答按服务端口径判定，与结果页的「未答」数一致。
+            const unanswered = payload.filter((p) => isUnansweredSelection(p.selected)).length;
+            if (unanswered > 0 && !confirm(`还有 ${unanswered} 道题未作答，确定交卷吗？`)) return;
 
             document.removeEventListener('keydown', self._practiceKeyHandler);
 
@@ -1186,7 +1207,10 @@ const App = {
 
             let navHtml = '';
             for (let i = 0; i < state.questions.length; i++) {
-                navHtml += `<button class="nav-q${i === state.idx ? ' current' : ''}" data-idx="${i}">${i + 1}</button>`;
+                const isCurrent = i === state.idx;
+                navHtml += `<button class="nav-q${isCurrent ? ' current' : ''}" data-idx="${i}" aria-label="第 ${
+                    i + 1
+                } 题"${isCurrent ? ' aria-current="true"' : ''}>${i + 1}</button>`;
             }
 
             const filterHtml = types
@@ -1522,10 +1546,18 @@ const App = {
                 for (let i = 0; i < total; i++) {
                     const ans = data.answers[i];
                     let cls = 'nav-q';
+                    let state = '未作答';
                     if (i === idx) cls += ' current';
-                    else if (ans.is_correct === 1) cls += ' correct';
-                    else if (ans.is_correct === 0) cls += ' wrong';
-                    navHtml += `<button class="${cls}" data-idx="${i}">${i + 1}</button>`;
+                    else if (ans.is_correct === 1) {
+                        cls += ' correct';
+                        state = '正确';
+                    } else if (ans.is_correct === 0) {
+                        cls += ' wrong';
+                        state = '错误';
+                    }
+                    navHtml += `<button class="${cls}" data-idx="${i}" aria-label="第 ${i + 1} 题，${state}"${
+                        i === idx ? ' aria-current="true"' : ''
+                    }>${i + 1}</button>`;
                 }
 
                 const statusText = unanswered ? '未作答' : a.is_correct ? '正确' : '错误';

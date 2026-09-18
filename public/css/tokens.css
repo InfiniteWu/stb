@@ -63,6 +63,10 @@
     --bg:             #fafaf9;
     --surface:        #ffffff;
     --surface-sunken: var(--ink-100);
+    /* 比 --surface-sunken 再深一档的暖灰，用于「整块面板」型的侧栏 ——
+       ink 色阶刻意只取 100/300/500/700/900 五级，不插 --ink-200，
+       所以这里单独定义。取值与色阶同族（stone）。 */
+    --surface-deep:   #e7e5e4;
     --border:         var(--ink-300);
 
     /* ── 间距：4px 基数 ─────────────────────────────────────── */
