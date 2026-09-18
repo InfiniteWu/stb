@@ -690,10 +690,15 @@ input[type="radio"]:focus-visible {
      - flex-start：不再居中
      - 图标与文字的间距从 .btn 的 space-2 改为 .nav-item 的 space-3
    两边左内边距都是 space-3，因此图标与文字会与「个人设置」逐列对齐。
-   （.nav-item 去掉 2px 边框后，原先用来补齐那 2px 的透明边框也一并去掉。） */
+   （.nav-item 去掉 2px 边框后，原先用来补齐那 2px 的透明边框也一并去掉。）
+
+   字号单独指定 16px：它带 .btn-sm（13px），与 .nav-item 的 16px 不一致。
+   这里没法直接复用 .nav-item 的字号值，所以两处需同步 —— 1280px 断点下
+   .nav-item 降为 14px，这里也一并降，避免窄屏又出现字号差。 */
 .sidebar-footer .btn-block {
     justify-content: flex-start;
     gap: var(--space-3);
+    font-size: 16px;
 }
 
 .user-card {
@@ -2258,6 +2263,13 @@ input[type="radio"]:focus-visible {
     .nav-item {
         gap: var(--space-2);
         padding: var(--space-2) var(--space-3);
+        font-size: 14px;
+    }
+
+    /* 「退出登录」不在 .nav-item 那套里，字号与「图标-文字」间距都得跟着一起降，
+       否则窄屏下页脚两项会既差字号、文字又右移 4px */
+    .sidebar-footer .btn-block {
+        gap: var(--space-2);
         font-size: 14px;
     }
 
