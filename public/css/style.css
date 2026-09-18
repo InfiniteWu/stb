@@ -2006,6 +2006,10 @@ input[type="radio"]:focus-visible {
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    /* 深色品牌底上的默认文字色。必须显式声明：先前只有几个子元素各自写白，
+       品牌名与大标题靠继承，结果继承了 body 的 --ink-900（近黑），
+       在深青底上对比度约 1.4:1，几乎不可读。 */
+    color: var(--surface);
     background: var(--brand-800);
 }
 
@@ -2015,6 +2019,14 @@ input[type="radio"]:focus-visible {
     inset: 0;
     z-index: 0;
     background:
+        /* 文字区遮罩，放在第一层（最上）—— 与分页 Banner 的 scrim 同一套做法。
+           光晕会把左上角提亮，没有它的话次要文字在最亮处过不了 AA。 */
+        linear-gradient(
+            90deg,
+            rgba(15, 26, 24, 0.34) 0%,
+            rgba(15, 26, 24, 0.12) 70%,
+            rgba(15, 26, 24, 0) 100%
+        ),
         radial-gradient(120% 90% at 12% 8%, rgba(45, 212, 191, 0.35), rgba(45, 212, 191, 0) 55%),
         radial-gradient(90% 80% at 88% 92%, rgba(13, 148, 136, 0.45), rgba(13, 148, 136, 0) 60%),
         repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0 1px, rgba(255, 255, 255, 0) 1px 32px),
@@ -2039,33 +2051,35 @@ input[type="radio"]:focus-visible {
     max-width: 560px;
 }
 
+/* 品牌条整行按「标题」处理：书页图标与名称都给足字号，
+   版本胶囊跟着放大但保持徽章的次级感（比名称小一档）。 */
 .login-brand-bar {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-4);
 }
 
 .login-brand-logo {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 48px;
+    height: 48px;
     flex-shrink: 0;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     background: rgba(255, 255, 255, 0.16);
     color: var(--surface);
 }
 
 .login-brand-logo svg {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
 }
 
 .login-brand-title {
-    font-size: 17px;
+    font-size: 30px;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
 }
 
 /* 版本胶囊：与移动端同一处标记 */
@@ -2076,14 +2090,14 @@ input[type="radio"]:focus-visible {
     padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-full);
     background: rgba(255, 255, 255, 0.14);
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.9);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.96);
 }
 
 .login-greet {
     margin-top: var(--space-12);
     font-size: 15px;
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.92);
 }
 
 .login-headline {
@@ -2107,7 +2121,7 @@ input[type="radio"]:focus-visible {
     margin-top: var(--space-5);
     font-size: 16px;
     line-height: 1.6;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.92);
 }
 
 /* 玻璃数据条：数字来自公开只读接口，取不到时整条不渲染 */
@@ -2143,7 +2157,7 @@ input[type="radio"]:focus-visible {
     display: block;
     margin-top: var(--space-1);
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.75);
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .login-features {
@@ -2161,7 +2175,7 @@ input[type="radio"]:focus-visible {
     align-items: center;
     gap: var(--space-3);
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.92);
 }
 
 .login-feature svg {
@@ -2837,9 +2851,29 @@ input[type="radio"]:focus-visible {
         padding: var(--space-6);
     }
 
-    /* 240px 的品牌带只放得下品牌条与大标题，其余收起 */
+    /* 240px 的品牌带只放得下品牌条与大标题，其余收起；
+       品牌条也收一档，否则会和下面的大标题抢注意力 */
     .login-visual-body {
         max-width: none;
+    }
+
+    .login-brand-bar {
+        gap: var(--space-3);
+    }
+
+    .login-brand-logo {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+    }
+
+    .login-brand-logo svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .login-brand-title {
+        font-size: 24px;
     }
 
     .login-greet,

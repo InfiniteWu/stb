@@ -293,6 +293,14 @@ textarea {
     flex: 1;
     padding: calc(var(--safe-top) + var(--space-4)) var(--space-5) var(--space-6);
     background:
+        /* 文字区遮罩，放在第一层（最上）—— 与桌面端品牌区、分页 Banner 同一套
+           做法。光晕会把顶部提亮，没有它次要文字过不了 AA。 */
+        linear-gradient(
+            180deg,
+            rgba(15, 26, 24, 0.34) 0%,
+            rgba(15, 26, 24, 0.12) 70%,
+            rgba(15, 26, 24, 0) 100%
+        ),
         radial-gradient(
             120% 80% at 12% 0%,
             rgba(45, 212, 191, 0.34) 0%,
@@ -341,13 +349,13 @@ textarea {
     border-radius: var(--radius-full);
     background: rgba(255, 255, 255, 0.14);
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.96);
 }
 
 .m-login-greet {
     margin-top: var(--space-6);
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.92);
 }
 
 .m-login-headline {
@@ -373,7 +381,7 @@ textarea {
     margin-top: var(--space-5);
     font-size: 14px;
     line-height: 1.6;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.92);
 }
 
 /* 玻璃数据条 */
@@ -408,7 +416,7 @@ textarea {
     display: block;
     margin-top: var(--space-1);
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.75);
+    color: rgba(255, 255, 255, 0.9);
 }
 
 /* 抽屉式白卡：负 margin 让它压住品牌区，形成 bottom sheet 的层次 */
