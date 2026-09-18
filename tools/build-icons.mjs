@@ -64,6 +64,10 @@ const ICONS = {
     users: 'users',
     user: 'user',
     'user-plus': 'user-plus',
+    // 登录页：字段图标与密码显隐
+    lock: 'lock',
+    eye: 'eye',
+    'eye-off': 'eye-off',
     'list-checks': 'list-checks',
     'bar-chart': 'chart-column',
     target: 'target',

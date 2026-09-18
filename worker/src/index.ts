@@ -18,6 +18,7 @@ import { bankRoutes } from './routes/banks';
 import { dashboardRoutes } from './routes/dashboard';
 import { importRoutes } from './routes/import';
 import { practiceRoutes } from './routes/practice';
+import { publicRoutes } from './routes/public';
 import { questionRoutes } from './routes/questions';
 import { recordRoutes } from './routes/records';
 import { sessionRoutes } from './routes/sessions';
@@ -47,6 +48,7 @@ app.route('/api/sessions', sessionRoutes);
 app.route('/api/wrongbook', wrongBookRoutes);
 app.route('/api/dashboard', dashboardRoutes);
 app.route('/api/records', recordRoutes);
+app.route('/api/public', publicRoutes);
 app.route('/api/import', importRoutes);
 app.route('/api/users', userRoutes);
 

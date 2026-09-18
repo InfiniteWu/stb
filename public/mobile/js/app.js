@@ -18,6 +18,13 @@
  * `selected !== null` 判断会把它算成「已答」，而服务端计为「未答」，
  * 于是交卷后的结果页与作答时的「未答」统计对不上。这里统一按服务端口径。
  */
+/**
+ * 管理员联系手机号。
+ * 登录页的「忘记密码？」与「联系管理员开通」都直接拉起短信界面并带好号码
+ * —— 本应用没有自助重置密码，也没有注册入口，这两个动作的实际含义就是找管理员。
+ */
+const ADMIN_SMS = 'sms:17185193120';
+
 const isUnansweredSelection = (selected) =>
     selected === null || selected === undefined || (Array.isArray(selected) && selected.length === 0);
 
@@ -100,6 +107,9 @@ const App = {
         const noHeader = path === '/login';
         header.style.display = noHeader ? 'none' : 'flex';
 
+        // 登录页要整屏铺满（品牌区贴顶、白卡贴底），所以去掉 .m-page 的内边距
+        page.classList.toggle('m-page-plain', path === '/login');
+
         // 详情页此前被排除在「显示返回箭头」之外，导致进去后无法中途退出，
         // 只能一路翻到最后一题才有返回按钮。现在恢复箭头。
         const noBack =
@@ -169,39 +179,130 @@ const App = {
         document.getElementById('tabbar').style.display = 'none';
         page.innerHTML = `
             <div class="m-login">
-                <div class="m-login-card">
-                    <div class="m-login-brand"><span data-icon="brand"></span></div>
-                    <div class="m-login-title">二哥刷题宝</div>
-                    <div class="m-login-subtitle">登录你的账号</div>
-                    <form id="login-form">
-                        <div class="m-field">
+                <div class="m-login-hero">
+                    <div class="m-login-bar">
+                        <span class="m-login-logo" data-icon="brand"></span>
+                        <span class="m-login-name">二哥刷题宝</span>
+                        <span class="m-login-ver">v2.0 · 智能</span>
+                    </div>
+                    <div class="m-login-greet">👋 你好，欢迎回来</div>
+                    <h1 class="m-login-headline">
+                        继续你的<br>
+                        <span class="m-login-headline-hl">刷题进阶之旅</span>
+                    </h1>
+                    <p class="m-login-desc">海量真题题库 · 智能错题回顾 · 助你高效通过每一次考核</p>
+                    <div class="m-login-stats m-hidden" id="login-stats">
+                        <div class="m-login-stat">
+                            <b class="tnum" id="login-stat-q">—</b><span>道真题</span>
+                        </div>
+                        <div class="m-login-stat">
+                            <b class="tnum" id="login-stat-b">—</b><span>套题库</span>
+                        </div>
+                        <div class="m-login-stat">
+                            <b class="tnum" id="login-stat-p">—</b><span>次练习</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="m-login-sheet">
+                    <div class="m-login-handle" aria-hidden="true"></div>
+                    <h2 class="m-login-title">登录账号</h2>
+                    <p class="m-login-subtitle">输入账号信息继续学习</p>
+
+                    <form id="login-form" novalidate>
+                        <div class="m-login-field">
                             <label for="login-user">用户名</label>
-                            <input type="text" id="login-user" class="m-input" placeholder="请输入用户名"
-                                   autocomplete="username" required>
+                            <div class="m-input-wrap">
+                                <span class="m-input-icon" data-icon="user"></span>
+                                <input type="text" id="login-user" class="m-input"
+                                       placeholder="请输入用户名" autocomplete="username">
+                            </div>
                         </div>
-                        <div class="m-field">
+                        <div class="m-login-field">
                             <label for="login-pass">密码</label>
-                            <input type="password" id="login-pass" class="m-input" placeholder="请输入密码"
-                                   autocomplete="current-password" required>
+                            <div class="m-input-wrap">
+                                <span class="m-input-icon" data-icon="lock"></span>
+                                <input type="password" id="login-pass" class="m-input"
+                                       placeholder="请输入密码" autocomplete="current-password">
+                                <button type="button" class="m-input-eye" id="login-eye" data-icon="eye"
+                                        aria-label="显示密码" aria-pressed="false"></button>
+                            </div>
                         </div>
-                        <button type="submit" class="m-btn m-btn-primary" id="login-submit">登录</button>
+
+                        <div class="m-login-assist">
+                            <label class="m-login-check">
+                                <input type="checkbox" id="login-remember" checked>
+                                <span>记住我</span>
+                            </label>
+                            <a class="m-login-link" href="${ADMIN_SMS}">忘记密码？</a>
+                        </div>
+
+                        <button type="submit" class="m-btn m-btn-primary m-login-submit" id="login-submit">
+                            <span id="login-submit-label">登录</span>
+                            <span data-icon="arrow-right"></span>
+                        </button>
                     </form>
+
+                    <div class="m-login-foot">
+                        <p class="m-login-foot-line">没有账号？<a class="m-login-link" href="${ADMIN_SMS}">联系管理员开通</a></p>
+                        <p class="m-login-tagline">二哥刷题宝 · 让每一次练习都有收获</p>
+                    </div>
                 </div>
             </div>`;
         this.hydrateIcons(page);
+        this.loadLoginStats();
+
+        const userInput = document.getElementById('login-user');
+        const passInput = document.getElementById('login-pass');
+        const eye = document.getElementById('login-eye');
+
+        // 密码显隐：切换 type 与图标，并把状态同步给读屏
+        eye.addEventListener('click', () => {
+            const show = passInput.type === 'password';
+            passInput.type = show ? 'text' : 'password';
+            eye.setAttribute('data-icon', show ? 'eye-off' : 'eye');
+            eye.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+            eye.setAttribute('aria-pressed', show ? 'true' : 'false');
+            this.hydrateIcons(eye.parentElement);
+        });
+
+        /**
+         * 缺字段时抖一下并聚焦，而不是让浏览器弹原生校验气泡 ——
+         * 原生气泡在移动端会顶起页面、且样式不可控。
+         */
+        const shake = (input) => {
+            const field = input.closest('.m-login-field');
+            if (!field) return;
+            field.classList.remove('m-shake');
+            void field.offsetWidth; // 强制重排，让动画能重复触发
+            field.classList.add('m-shake');
+            field.addEventListener('animationend', () => field.classList.remove('m-shake'), {
+                once: true,
+            });
+        };
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const u = document.getElementById('login-user').value.trim();
-            const p = document.getElementById('login-pass').value;
-            if (!u || !p) return;
+            const u = userInput.value.trim();
+            const p = passInput.value;
+
+            const missing = [];
+            if (!u) missing.push(userInput);
+            if (!p) missing.push(passInput);
+            if (missing.length) {
+                missing.forEach(shake);
+                missing[0].focus();
+                return;
+            }
 
             const btn = document.getElementById('login-submit');
+            const label = document.getElementById('login-submit-label');
             btn.disabled = true;
-            btn.textContent = '正在验证…';
+            label.textContent = '正在验证…';
 
             try {
-                const r = await API.login(u, p);
+                // 「记住我」不勾选 → 服务端下发会话 Cookie，关掉浏览器下次要重新登录
+                const r = await API.login(u, p, document.getElementById('login-remember').checked);
                 this.currentUser = r.user;
                 this.updateTabBar();
                 window.location.hash = '#/';
@@ -209,9 +310,28 @@ const App = {
                 alert(err.message);
             } finally {
                 btn.disabled = false;
-                btn.textContent = '登录';
+                label.textContent = '登录';
             }
         });
+    },
+
+    /**
+     * 登录页品牌数据条。
+     * 只显示接口返回的真实聚合数字；取不到就整条隐藏 —— 不编造数据。
+     */
+    async loadLoginStats() {
+        const box = document.getElementById('login-stats');
+        if (!box) return;
+        try {
+            const s = await API.getPublicStats();
+            const fmt = (n) => Number(n || 0).toLocaleString('zh-CN');
+            document.getElementById('login-stat-q').textContent = fmt(s.question_count);
+            document.getElementById('login-stat-b').textContent = fmt(s.bank_count);
+            document.getElementById('login-stat-p').textContent = fmt(s.practice_count);
+            box.classList.remove('m-hidden');
+        } catch {
+            box.classList.add('m-hidden');
+        }
     },
 
     // ══════════════════════════════════════════════════════════

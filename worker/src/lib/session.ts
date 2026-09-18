@@ -34,17 +34,16 @@ export function readSessionCookie(cookieHeader: string | null | undefined): stri
 
 /**
  * 构造 Set-Cookie。
- * Max-Age 与库中 expires_at 保持一致。
+ *
+ * maxAgeSeconds > 0：持久 Cookie，Max-Age 与库中 expires_at 一致；
+ * maxAgeSeconds <= 0：**会话 Cookie**（不带 Max-Age）—— 浏览器关闭即失效，
+ *   对应登录页「记住我」未勾选的情况。服务端 expires_at 仍是 7 天，所以
+ *   浏览器一直开着不会被中途踢下线，只是重开浏览器后要重新登录。
  */
 export function buildSessionCookie(token: string, maxAgeSeconds = SESSION_DAYS * 86_400): string {
-  return [
-    `${SESSION_COOKIE}=${token}`,
-    'Path=/',
-    'Secure',
-    'HttpOnly',
-    'SameSite=Lax',
-    `Max-Age=${maxAgeSeconds}`,
-  ].join('; ');
+  const parts = [`${SESSION_COOKIE}=${token}`, 'Path=/', 'Secure', 'HttpOnly', 'SameSite=Lax'];
+  if (maxAgeSeconds > 0) parts.push(`Max-Age=${maxAgeSeconds}`);
+  return parts.join('; ');
 }
 
 /** 清除 Cookie（登出） */

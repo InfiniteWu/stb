@@ -90,9 +90,12 @@ authRoutes.post('/challenge', csrfGuard, async (c) => {
 
 // ── 登录 ─────────────────────────────────────────────────────
 authRoutes.post('/login', csrfGuard, async (c) => {
-  const body = await readJson<{ username?: unknown; verifier?: unknown }>(c);
+  const body = await readJson<{ username?: unknown; verifier?: unknown; remember?: unknown }>(c);
   const username = normalizeUsername(body.username);
   const verifier = typeof body.verifier === 'string' ? body.verifier : '';
+  // 「记住我」缺省为 true —— 桌面端不带这个字段，行为必须保持不变；
+  // 只有显式传 false 才发会话 Cookie（关掉浏览器就要重新登录）
+  const remember = body.remember !== false;
 
   if (!username || !verifier) {
     throw badRequest('用户名和密码不能为空');
@@ -136,7 +139,7 @@ authRoutes.post('/login', csrfGuard, async (c) => {
   // 顺带清理过期会话，避免额外的定时任务
   await purgeExpiredSessions(c.env.DB);
 
-  c.header('Set-Cookie', buildSessionCookie(token, SESSION_DAYS * 86_400));
+  c.header('Set-Cookie', buildSessionCookie(token, remember ? SESSION_DAYS * 86_400 : 0));
   return c.json({ ok: true, user: auth });
 });
 

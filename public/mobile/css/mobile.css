@@ -191,6 +191,14 @@ textarea {
     margin-bottom: 0;
 }
 
+/* 登录页：整屏铺满，不吃 .m-page 的内边距与栅格间距。
+   用 ID 提高优先级 —— .m-page 在响应式一节里还会再设一次 padding，
+   同优先级下那条在后面，会反过来盖掉这里。 */
+#page.m-page-plain {
+    padding: 0;
+    gap: 0;
+}
+
 /* 底部有常驻操作区时，页面需补足其高度，避免内容被遮住。
    两行版（答题页）：按钮 48×2 + 行间距 8 + 上下内边距 24 + 与内容间隙 16 = 144 */
 .m-page--with-submit {
@@ -263,59 +271,331 @@ textarea {
     box-shadow: 0 0 0 3px var(--brand-100);
 }
 
-/* ═══════════════ 五、登录页 ═══════════════ */
+/* ═══════════════ 五、登录页 ═══════════════
+ * 结构：上半屏品牌区（渐变 + 光晕 + 玻璃数据条）+ 下半屏抽屉式白卡。
+ * 明暗分区本身就是「信息层 / 操作层」的分界，不靠边框。
+ *
+ * 颜色只有两种来源：设计令牌，以及白色/品牌色的 rgba() 叠加
+ * （半透明只能靠 rgba，且不引入新的色相）。 */
+
 .m-login {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
     min-height: 100vh;
     min-height: 100dvh;
-    background: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-700) 100%);
-    padding: var(--space-8) var(--space-6);
-    padding-top: calc(var(--space-8) + var(--safe-top));
+    background: var(--brand-900);
 }
 
-.m-login-card {
-    width: 100%;
-    max-width: 360px;
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    padding: var(--space-8) var(--space-6);
-    box-shadow: var(--shadow-lg);
-}
-
-/* 登录页品牌标记：图标由 icons.js 注入，尺寸在这里给足 */
-.m-login-brand {
-    width: var(--space-16);
-    height: var(--space-16);
-    margin: 0 auto var(--space-4);
-    border-radius: var(--radius-lg);
-    background: var(--brand-600);
+/* 品牌区：两层径向高光 + 主渐变，比单层线性渐变更有层次。
+   两处 rgba 分别是 brand-400 与 brand-200，没有引入新色相。 */
+.m-login-hero {
+    position: relative;
+    flex: 1;
+    padding: calc(var(--safe-top) + var(--space-4)) var(--space-5) var(--space-6);
+    background:
+        radial-gradient(
+            120% 80% at 12% 0%,
+            rgba(45, 212, 191, 0.34) 0%,
+            rgba(45, 212, 191, 0) 60%
+        ),
+        radial-gradient(
+            90% 70% at 92% 22%,
+            rgba(153, 246, 228, 0.2) 0%,
+            rgba(153, 246, 228, 0) 62%
+        ),
+        linear-gradient(160deg, var(--brand-700) 0%, var(--brand-900) 100%);
     color: var(--surface);
+}
+
+.m-login-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.m-login-logo {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: var(--space-8);
+    height: var(--space-8);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.16);
+    color: var(--surface);
 }
 
-.m-login-brand svg,
-.m-login-brand [data-icon] > svg {
-    width: 36px;
-    height: 36px;
+.m-login-logo svg {
+    width: 18px;
+    height: 18px;
+}
+
+.m-login-name {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* 版本胶囊：把「v2.0 · 智能」推到最右 */
+.m-login-ver {
+    margin-left: auto;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.14);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.m-login-greet {
+    margin-top: var(--space-6);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.m-login-headline {
+    margin-top: var(--space-1);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+}
+
+/* 第二行用品牌色阶做渐变文字。
+   设计稿给的是 teal→amber 的暖色高亮，但全站约定只有 3 个色相
+   （品牌青绿 / 成功绿 / 警示红），引入琥珀就是第 4 个色相，
+   所以这里改成同色相内由亮到亮的渐变，保持「跳出来」的效果。 */
+.m-login-headline-hl {
+    background: linear-gradient(90deg, var(--brand-200) 0%, var(--brand-400) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+.m-login-desc {
+    margin-top: var(--space-5);
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* 玻璃数据条 */
+.m-login-stats {
+    display: flex;
+    margin-top: var(--space-5);
+    padding: var(--space-4) var(--space-2);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.m-login-stat {
+    flex: 1;
+    text-align: center;
+}
+
+.m-login-stat + .m-login-stat {
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.m-login-stat b {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.m-login-stat span {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+/* 抽屉式白卡：负 margin 让它压住品牌区，形成 bottom sheet 的层次 */
+.m-login-sheet {
+    position: relative;
+    margin-top: calc(var(--space-6) * -1);
+    padding: var(--space-6) var(--space-5) calc(var(--space-6) + var(--safe-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--surface);
+}
+
+.m-login-handle {
+    width: var(--space-10);
+    height: var(--space-1);
+    margin: 0 auto var(--space-5);
+    border-radius: var(--radius-full);
+    background: var(--ink-300);
 }
 
 .m-login-title {
-    text-align: center;
     font-size: 22px;
     font-weight: 700;
     color: var(--ink-900);
-    margin-bottom: var(--space-2);
 }
 
 .m-login-subtitle {
-    text-align: center;
+    margin-top: var(--space-1);
+    margin-bottom: var(--space-6);
     font-size: 13px;
     color: var(--ink-500);
-    margin-bottom: var(--space-6);
+}
+
+.m-login-field {
+    margin-bottom: var(--space-3);
+}
+
+.m-login-field label {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-700);
+}
+
+/* 输入框外壳：图标 + 输入框 + 可选的眼睛按钮
+   焦点光晕挂在外壳上（:focus-within），这样点图标也算聚焦 */
+.m-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 52px;
+    padding: 0 var(--space-4);
+    border: 2px solid var(--ink-300);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
+    transition: var(--transition);
+}
+
+.m-input-wrap:focus-within {
+    border-color: var(--brand-600);
+    background: var(--surface);
+    box-shadow: 0 0 0 4px var(--brand-100);
+}
+
+.m-input-icon {
+    display: flex;
+    flex-shrink: 0;
+    color: var(--ink-500);
+}
+
+.m-input-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* 外壳里的输入框去掉自己的边框与内边距，表现统一交给外壳。
+   用后代选择器而不是给 input 再加一个类：.m-input 定义在「六、表单与按钮」一节，
+   在本节之后，同优先级会反过来盖掉这里。
+   font-size 必须 ≥16px —— iOS Safari 上更小会触发自动放大。 */
+.m-input-wrap .m-input,
+.m-input-wrap .m-input:focus {
+    height: 100%;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    font-size: 16px;
+}
+
+.m-input-eye {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: var(--space-8);
+    height: var(--space-8);
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--ink-500);
+    cursor: pointer;
+}
+
+.m-input-eye svg {
+    width: 18px;
+    height: 18px;
+}
+
+.m-login-assist {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-5);
+    font-size: 13px;
+}
+
+.m-login-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--ink-700);
+    cursor: pointer;
+}
+
+.m-login-check input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--brand-600);
+}
+
+.m-login-link {
+    color: var(--brand-700);
+    text-decoration: none;
+}
+
+.m-login-submit {
+    height: 52px;
+    font-size: 16px;
+    background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-700) 100%);
+    box-shadow: var(--shadow-md);
+}
+
+.m-login-submit:active {
+    transform: scale(0.98);
+    box-shadow: var(--shadow-sm);
+}
+
+.m-login-foot {
+    margin-top: var(--space-4);
+    text-align: center;
+}
+
+.m-login-foot-line {
+    font-size: 13px;
+    color: var(--ink-500);
+}
+
+.m-login-tagline {
+    margin-top: var(--space-3);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-700);
+}
+
+/* 缺字段时的水平抖动 */
+@keyframes m-shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    20% {
+        transform: translateX(-6px);
+    }
+    40% {
+        transform: translateX(6px);
+    }
+    60% {
+        transform: translateX(-4px);
+    }
+    80% {
+        transform: translateX(4px);
+    }
+}
+
+.m-shake {
+    animation: m-shake 300ms var(--ease);
 }
 
 /* ═══════════════ 六、表单与按钮 ═══════════════ */
@@ -1645,14 +1925,8 @@ textarea {
         font-size: 16px;
     }
 
-    .m-login {
-        padding: var(--space-6) var(--space-4);
-        padding-top: calc(var(--space-6) + var(--safe-top));
-    }
-
-    .m-login-card {
-        padding: var(--space-6) var(--space-4);
-    }
+    /* 旧版登录页是「一张居中卡片」，这里收过它的内边距。
+       重设计后品牌区与抽屉卡各自带内边距，这条已无意义（.m-login-card 类也已删除）。 */
 
     .m-stat-card {
         padding: var(--space-3) var(--space-2);
@@ -1692,7 +1966,8 @@ textarea {
  * 注意：不加 !important，避免覆盖 tokens.css 的全局规则。 */
 @media (prefers-reduced-motion: reduce) {
     .m-option:active,
-    .m-session-item:active {
+    .m-session-item:active,
+    .m-login-submit:active {
         transform: none;
     }
 

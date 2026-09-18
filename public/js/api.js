@@ -83,12 +83,21 @@ const API = {
     },
 
     /** 第二步：提交拉伸结果 */
-    authLogin(username, verifier) {
-        return this.post('/auth/login', { username: username, verifier: verifier });
+    authLogin(username, verifier, remember) {
+        const body = { username: username, verifier: verifier };
+        // 只在明确指定时才带上该字段：缺省由服务端按 true 处理，
+        // 桌面端登录不传，线上行为因此完全不变
+        if (typeof remember === 'boolean') body.remember = remember;
+        return this.post('/auth/login', body);
     },
 
-    /** 完整登录流程 */
-    async login(username, password) {
+    /**
+     * 完整登录流程。
+     *
+     * remember 省略时由服务端按 true 处理（7 天持久 Cookie）；
+     * 传 false 则下发会话 Cookie —— 关掉浏览器下次要重新登录。
+     */
+    async login(username, password, remember) {
         const ch = await this.authChallenge(username);
         if (ch.needsReset) {
             const err = new Error(ch.error || '该账号需要重置密码');
@@ -96,7 +105,7 @@ const API = {
             throw err;
         }
         const verifier = await KDF.stretchPassword(password, ch.salt, ch.iterations);
-        return this.authLogin(username, verifier);
+        return this.authLogin(username, verifier, remember);
     },
 
     logout() {
@@ -125,6 +134,10 @@ const API = {
     },
 
     // ── 题库 ────────────────────────────────────────────────
+    /** 登录页品牌数据条：无需登录的聚合数字 */
+    getPublicStats() {
+        return this.get('/public/stats');
+    },
     getBanks() {
         return this.get('/banks');
     },

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { env } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { toBeijingDate, toBeijingStamp } from '../src/lib/time';
 import {
     loginAs,
@@ -13,6 +13,8 @@ import {
     get,
     put,
     del,
+    stretch,
+    BASE,
     SAMPLE_QUESTIONS,
 } from './helpers';
 
@@ -598,5 +600,78 @@ describe('时区', () => {
         const s = toBeijingStamp(Date.UTC(2026, 0, 2, 3, 4, 5));
         expect(s).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
         expect(s).toBe('2026-01-02 11:04:05');
+    });
+});
+
+describe('公开统计接口（登录页用）', () => {
+    it('无需登录即可读取，且只返回聚合数字', async () => {
+        await createBankWithQuestions(SAMPLE_QUESTIONS);
+
+        // 刻意不带 cookie
+        const res = await get('/api/public/stats');
+        expect(res.status).toBe(200);
+        expect(res.data.question_count).toBe(SAMPLE_QUESTIONS.length);
+        expect(res.data.bank_count).toBe(1);
+        expect(res.data.practice_count).toBe(0);
+        // 只有三个聚合字段，不该夹带用户相关数据
+        expect(Object.keys(res.data).sort()).toEqual([
+            'bank_count',
+            'practice_count',
+            'question_count',
+        ]);
+    });
+
+    it('带 5 分钟边缘缓存（避免每次刷新都打 D1）', async () => {
+        const res = await SELF.fetch(BASE + '/api/public/stats');
+        expect(res.headers.get('Cache-Control')).toBe('public, max-age=300');
+    });
+
+    it('练习次数随提交增长', async () => {
+        const { cookie } = await loginAs('u1', 'pass1234');
+        const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
+        await post(
+            '/api/practice/submit',
+            { mode: 'random', answers: [{ question_id: questionIds[0]!, selected: 1 }] },
+            cookie,
+        );
+
+        const res = await get('/api/public/stats');
+        expect(res.data.practice_count).toBe(1);
+    });
+});
+
+describe('登录「记住我」', () => {
+    /** 走完整挑战/拉伸流程，返回原始 Set-Cookie */
+    async function loginRaw(extra: Record<string, unknown>): Promise<string> {
+        await createUserRow('u1', 'pass1234');
+        const ch = await post('/api/auth/challenge', { username: 'u1' });
+        const verifier = await stretch('pass1234', ch.data.salt, ch.data.iterations);
+        const res = await SELF.fetch(BASE + '/api/auth/login', {
+            method: 'POST',
+            headers: { Origin: BASE, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'u1', verifier, ...extra }),
+        });
+        return res.headers.get('Set-Cookie') ?? '';
+    }
+
+    it('默认（桌面端不带该字段）仍是 7 天持久 Cookie', async () => {
+        const cookie = await loginRaw({});
+        expect(cookie).toContain('__Host-sid=');
+        expect(cookie).toContain('Max-Age=604800');
+    });
+
+    it('显式 remember=false 时发会话 Cookie（不带 Max-Age，关掉浏览器即失效）', async () => {
+        const cookie = await loginRaw({ remember: false });
+        expect(cookie).toContain('__Host-sid=');
+        expect(cookie).not.toContain('Max-Age');
+        // 安全属性不能因为这次改动而丢失
+        expect(cookie).toContain('HttpOnly');
+        expect(cookie).toContain('Secure');
+        expect(cookie).toContain('SameSite=Lax');
+    });
+
+    it('remember=true 与缺省一致', async () => {
+        const cookie = await loginRaw({ remember: true });
+        expect(cookie).toContain('Max-Age=604800');
     });
 });
