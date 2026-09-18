@@ -19,11 +19,16 @@
  * 于是交卷后的结果页与作答时的「未答」统计对不上。这里统一按服务端口径。
  */
 /**
- * 管理员联系手机号。
- * 登录页的「忘记密码？」与「联系管理员开通」都直接拉起短信界面并带好号码
- * —— 本应用没有自助重置密码，也没有注册入口，这两个动作的实际含义就是找管理员。
+ * 管理员联系手机号，以及登录页两条短信的正文。
+ *
+ * 本应用没有自助重置密码，也没有注册入口，所以「忘记密码？」与
+ * 「联系管理员开通」的实际含义都是找管理员 —— 直接拉起短信界面并带好号码与正文。
  */
-const ADMIN_SMS = 'sms:17185193120';
+const ADMIN_PHONE = '17185193120';
+const SMS_FORGOT = (username) =>
+    `管理员您好，我的刷题宝账号（用户名：${username}）忘记了密码，麻烦帮我重置一下。`;
+const SMS_SIGNUP =
+    '管理员您好，我想开通刷题宝账号。\n我的统一身份账号名是：\n姓名：\n部门：';
 
 const isUnansweredSelection = (selected) =>
     selected === null || selected === undefined || (Array.isArray(selected) && selected.length === 0);
@@ -234,7 +239,7 @@ const App = {
                                 <input type="checkbox" id="login-remember" checked>
                                 <span>记住我</span>
                             </label>
-                            <a class="m-login-link" href="${ADMIN_SMS}">忘记密码？</a>
+                            <a class="m-login-link" id="login-forgot">忘记密码？</a>
                         </div>
 
                         <button type="submit" class="m-btn m-btn-primary m-login-submit" id="login-submit">
@@ -244,7 +249,7 @@ const App = {
                     </form>
 
                     <div class="m-login-foot">
-                        <p class="m-login-foot-line">没有账号？<a class="m-login-link" href="${ADMIN_SMS}">联系管理员开通</a></p>
+                        <p class="m-login-foot-line">没有账号？<a class="m-login-link" id="login-signup">联系管理员开通</a></p>
                         <p class="m-login-tagline">二哥刷题宝 · 让每一次练习都有收获</p>
                     </div>
                 </div>
@@ -255,6 +260,16 @@ const App = {
         const userInput = document.getElementById('login-user');
         const passInput = document.getElementById('login-pass');
         const eye = document.getElementById('login-eye');
+
+        // 两条短信链接：号码 + 正文（正文按平台拼分隔符）
+        document.getElementById('login-signup').setAttribute('href', this.smsHref(SMS_SIGNUP));
+        const forgot = document.getElementById('login-forgot');
+        // 「忘记密码？」的正文里带用户名，所以随输入实时更新
+        const syncForgot = () => {
+            forgot.setAttribute('href', this.smsHref(SMS_FORGOT(userInput.value.trim())));
+        };
+        syncForgot();
+        userInput.addEventListener('input', syncForgot);
 
         // 密码显隐：切换 type 与图标，并把状态同步给读屏
         eye.addEventListener('click', () => {
@@ -313,6 +328,25 @@ const App = {
                 label.textContent = '登录';
             }
         });
+    },
+
+    /**
+     * 拼 sms: 链接。
+     *
+     * 正文参数的分隔符各平台不一致：RFC 5724 与 Android 用 `?`，iOS 8+ 用 `&`。
+     * 用错分隔符正文就不生效，所以按平台选。
+     * 正文必须 encodeURIComponent —— 里面有中文、全角括号和换行。
+     *
+     * 需要知道的限制：部分系统的短信 App 会忽略 body 参数，用户看到的就只是
+     * 一条填好号码的空白短信。这是 sms: 方案本身的天花板，不是实现问题。
+     */
+    smsHref(text) {
+        const ua = navigator.userAgent || '';
+        const isIOS =
+            /iPad|iPhone|iPod/.test(ua) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const sep = isIOS ? '&' : '?';
+        return `sms:${ADMIN_PHONE}${sep}body=${encodeURIComponent(text)}`;
     },
 
     /**
