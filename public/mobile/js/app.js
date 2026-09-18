@@ -224,6 +224,15 @@ const App = {
         try {
             const d = await API.getDashboard();
             const perBank = d.today_wrong_per_bank || [];
+            const trend = Array.isArray(d.trend) ? d.trend : [];
+            const recent = d.recent_session;
+            const wrongCount = d.wrong_active_count || 0;
+
+            // 趋势摘要按整体算（总答对 / 总作答），不把 7 天的百分比再平均
+            const daysWithPractice = trend.filter((t) => t.accuracy !== null).length;
+            const answeredSum = trend.reduce((sum, t) => sum + (t.answered || 0), 0);
+            const correctSum = trend.reduce((sum, t) => sum + (t.correct || 0), 0);
+            const avgAccuracy = answeredSum > 0 ? correctSum / answeredSum : null;
 
             page.innerHTML = `
                 <div class="m-stats">
@@ -261,6 +270,52 @@ const App = {
                            </div>`
                         : ''
                 }
+                <div class="m-card">
+                    <div class="m-card-header">最近练习</div>
+                    <div class="m-card-body">
+                        ${
+                            recent
+                                ? `<div class="m-recent-session">
+                                       <div>
+                                           <div class="m-fw-600">${esc(recent.bank_name)}</div>
+                                           <div class="m-text-sm m-text-muted tnum">${esc(recent.submitted_at)} · 共 ${esc(recent.total_count)} 题</div>
+                                       </div>
+                                       <div class="m-recent-score tnum">${this.accuracyText(recent.correct_count, recent.total_count)}</div>
+                                   </div>
+                                   <a class="m-btn m-btn-secondary m-btn-sm m-mt-12" href="#/sessions/${recent.id}">查看详情</a>`
+                                : `<div class="m-text-muted">还没有练习记录</div>
+                                   <a class="m-btn m-btn-primary m-btn-sm m-mt-12" href="#/practice/pick">开始第一次练习</a>`
+                        }
+                    </div>
+                </div>
+                <div class="m-card">
+                    <div class="m-card-header">最近 7 天正确率</div>
+                    <div class="m-card-body">
+                        ${
+                            trend.length > 0
+                                ? '<svg class="m-trend-chart" id="m-trend-chart" role="img" aria-label="最近 7 天正确率趋势"></svg>'
+                                : ''
+                        }
+                        <div class="m-trend-meta">
+                            ${
+                                avgAccuracy === null
+                                    ? '最近 7 天还没有练习记录'
+                                    : `7 天平均正确率 <b class="tnum">${Math.round(avgAccuracy * 100)}%</b> · 练习 <b class="tnum">${daysWithPractice}</b> 天`
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="m-card m-review-card${wrongCount > 0 ? ' is-active' : ''}">
+                    <div class="m-card-body m-review-body">
+                        <div class="m-review-main">
+                            <div class="m-fw-600">${wrongCount > 0 ? `有 ${esc(wrongCount)} 道错题待复习` : '暂无错题'}</div>
+                            <div class="m-text-sm m-text-muted">${
+                                wrongCount > 0 ? '趁热打铁，把错题再过一遍' : '继续保持 —— 答错的题会自动收进错题本'
+                            }</div>
+                        </div>
+                        ${wrongCount > 0 ? '<a class="m-btn m-btn-primary m-btn-sm m-review-btn" href="#/wrongbook">去复习</a>' : ''}
+                    </div>
+                </div>
                 <div class="m-card m-mt-16">
                     <a href="#/practice/pick" class="m-entry-link">
                         <div class="m-entry-icon"><span data-icon="edit"></span></div>
@@ -271,10 +326,51 @@ const App = {
                         <div class="m-entry-arrow"><span data-icon="chevron-right"></span></div>
                     </a>
                 </div>`;
+            // SVG 要等插入 DOM 之后才量得到宽度，所以趋势图在这里画
+            const trendSvg = document.getElementById('m-trend-chart');
+            if (trendSvg) this.paintTrendChart(trendSvg, trend);
             this.hydrateIcons(page);
         } catch (err) {
             page.innerHTML = `<div class="m-empty"><p>${esc(err.message)}</p></div>`;
         }
+    },
+
+    /**
+     * 画「最近 7 天正确率」折线（与桌面端同一套算法）。
+     *
+     * CSP 是 style-src 'self'，内联 style 属性会被丢弃 —— 描边/填充写在 CSS 类里，
+     * 坐标只走 SVG 属性；又因为 SVG 一旦被非等比拉伸就会把圆点压成椭圆，
+     * 这里按容器实测宽度生成像素坐标，让 viewBox 与显示尺寸 1:1。
+     */
+    paintTrendChart(svg, trend) {
+        const H = 72;
+        const PAD_X = 8;
+        const PAD_Y = 10;
+        const W = Math.max(120, Math.round(svg.clientWidth || 300));
+        const n = trend.length;
+
+        const points = [];
+        trend.forEach((t, i) => {
+            if (t.accuracy === null || t.accuracy === undefined) return;
+            points.push({
+                x: PAD_X + (i * (W - PAD_X * 2)) / Math.max(1, n - 1),
+                y: H - PAD_Y - t.accuracy * (H - PAD_Y * 2),
+            });
+        });
+
+        svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        const base = `<line class="m-trend-base" x1="${PAD_X}" y1="${H - PAD_Y}" x2="${W - PAD_X}" y2="${H - PAD_Y}" />`;
+        const line =
+            points.length >= 2
+                ? `<polyline class="m-trend-line" points="${points
+                      .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+                      .join(' ')}" />`
+                : '';
+        const dots = points
+            .map((p) => `<circle class="m-trend-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" />`)
+            .join('');
+
+        svg.innerHTML = base + line + dots;
     },
 
     // ══════════════════════════════════════════════════════════
@@ -983,14 +1079,42 @@ const App = {
         titleEl.textContent = '练习记录';
         page.innerHTML = '<div class="m-loading"><div class="m-spinner"></div>加载中...</div>';
         try {
-            const data = await API.getSessions({ page: 1, per_page: 50 });
-            if (!data.sessions.length) {
-                page.innerHTML = `<div class="m-empty"><span data-icon="inbox"></span><p>暂无练习记录</p></div>`;
-                this.hydrateIcons(page);
-                return;
-            }
+            const filters = this.readSessionFilters();
+            // 题库下拉与记录列表一起取，避免串行两次往返
+            const [banks, data] = await Promise.all([
+                API.getBanks(),
+                API.getSessions({ page: 1, per_page: 50, ...this.sessionQuery(filters) }),
+            ]);
+            const hasFilter =
+                filters.bankId !== '' || filters.range !== 'all' || filters.accuracy !== 'all';
 
-            page.innerHTML = data.sessions
+            const filterHtml = `
+                <div class="m-filter-bar">
+                    <select class="m-input m-filter-select" id="mf-bank" aria-label="按题库筛选">
+                        <option value="">全部题库</option>
+                        ${banks
+                            .map(
+                                (b) =>
+                                    `<option value="${b.id}"${String(b.id) === filters.bankId ? ' selected' : ''}>${esc(b.name)}</option>`
+                            )
+                            .join('')}
+                    </select>
+                    <select class="m-input m-filter-select" id="mf-range" aria-label="按时间范围筛选">
+                        <option value="all"${filters.range === 'all' ? ' selected' : ''}>全部时间</option>
+                        <option value="7d"${filters.range === '7d' ? ' selected' : ''}>最近 7 天</option>
+                        <option value="30d"${filters.range === '30d' ? ' selected' : ''}>最近 30 天</option>
+                    </select>
+                    <select class="m-input m-filter-select" id="mf-accuracy" aria-label="按正确率筛选">
+                        <option value="all"${filters.accuracy === 'all' ? ' selected' : ''}>全部正确率</option>
+                        <option value="low"${filters.accuracy === 'low' ? ' selected' : ''}>低于 60%</option>
+                        <option value="mid"${filters.accuracy === 'mid' ? ' selected' : ''}>60% ~ 80%</option>
+                        <option value="high"${filters.accuracy === 'high' ? ' selected' : ''}>80% 以上</option>
+                    </select>
+                </div>
+                ${hasFilter ? '<button class="m-btn m-btn-secondary m-btn-sm m-clear-filter" id="mf-clear">清除筛选</button>' : ''}
+            `;
+
+            const listHtml = data.sessions
                 .map(
                     (s) => `
                 <div class="m-session-item" data-session="${s.id}">
@@ -1009,14 +1133,76 @@ const App = {
                 )
                 .join('');
 
+            page.innerHTML = data.sessions.length
+                ? filterHtml + listHtml
+                : `${filterHtml}<div class="m-empty"><p>${
+                      hasFilter ? '没有符合条件的记录' : '暂无练习记录'
+                  }</p></div>`;
+
             page.querySelectorAll('[data-session]').forEach((el) => {
                 el.addEventListener('click', () => {
                     window.location.hash = '#/sessions/' + el.dataset.session;
                 });
             });
+
+            // 改任一筛选控件就改写 hash —— 由 hashchange 触发重渲染，
+            // 筛选条件因此留在地址栏、可返回上一步
+            const applyFilters = () => {
+                const params = new URLSearchParams();
+                const bank = document.getElementById('mf-bank').value;
+                const range = document.getElementById('mf-range').value;
+                const accuracy = document.getElementById('mf-accuracy').value;
+                if (bank) params.set('bank_id', bank);
+                if (range !== 'all') params.set('range', range);
+                if (accuracy !== 'all') params.set('accuracy', accuracy);
+                const qs = params.toString();
+                window.location.hash = '#/sessions' + (qs ? '?' + qs : '');
+            };
+            ['mf-bank', 'mf-range', 'mf-accuracy'].forEach((id) => {
+                document.getElementById(id).onchange = applyFilters;
+            });
+            const clearBtn = document.getElementById('mf-clear');
+            if (clearBtn) {
+                clearBtn.onclick = () => {
+                    window.location.hash = '#/sessions';
+                };
+            }
+            this.hydrateIcons(page);
         } catch (err) {
             page.innerHTML = `<div class="m-empty"><p>${esc(err.message)}</p></div>`;
         }
+    },
+
+    /**
+     * 从 hash 读练习记录的筛选条件（与桌面端同一套约定）。
+     * 取值只认白名单，手改 URL 写成别的值一律当未设置。
+     */
+    readSessionFilters() {
+        const p = this.hashParams();
+        const range = p.get('range');
+        const accuracy = p.get('accuracy');
+        return {
+            bankId: p.get('bank_id') || '',
+            range: ['7d', '30d', 'all'].indexOf(range) >= 0 ? range : 'all',
+            accuracy: ['low', 'mid', 'high'].indexOf(accuracy) >= 0 ? accuracy : 'all',
+        };
+    },
+
+    /** 语义桶 → 接口的整数百分比闭区间 */
+    sessionQuery(filters) {
+        // 缺省值不进 query：range=all 服务端会忽略，发出去只会让 URL 变长
+        const q = {};
+        if (filters.range !== 'all') q.range = filters.range;
+        if (filters.bankId) q.bank_id = filters.bankId;
+        if (filters.accuracy === 'low') {
+            q.max_accuracy = 59;
+        } else if (filters.accuracy === 'mid') {
+            q.min_accuracy = 60;
+            q.max_accuracy = 79;
+        } else if (filters.accuracy === 'high') {
+            q.min_accuracy = 80;
+        }
+        return q;
     },
 
     // ══════════════════════════════════════════════════════════

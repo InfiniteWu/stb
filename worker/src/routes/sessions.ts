@@ -9,11 +9,26 @@ import { Hono } from 'hono';
 import type { AppBindings } from '../types';
 import { badRequest, notFound, readPagination } from '../lib/json';
 import { parseIntId } from '../lib/ids';
+import { recentDayBounds } from '../lib/time';
 import { currentAuth, requireLogin } from '../middleware/auth';
 
 export const sessionRoutes = new Hono<AppBindings>();
 
 sessionRoutes.use('*', requireLogin);
+
+/** `range` 参数 → 天数（含今天在内的最近 N 个北京自然日） */
+const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30 };
+
+/** 正确率筛选参数：整数百分比 0–100；缺省返回 null，非法则 400 */
+function readAccuracy(raw: string | undefined, field: string): number | null {
+  if (raw === undefined || raw === '') return null;
+  const n = Number.parseInt(raw, 10);
+  // 只接受规范写法：'60' 可以，'60.5' / ' 60' / '060' 一律拒绝
+  if (!Number.isInteger(n) || String(n) !== raw.trim() || n < 0 || n > 100) {
+    throw badRequest(`${field} 不合法`);
+  }
+  return n;
+}
 
 // ── 列表 ─────────────────────────────────────────────────────
 //
@@ -23,6 +38,15 @@ sessionRoutes.use('*', requireLogin);
 //      而真正可读的题库名需要 JOIN question_banks；
 //   3. 跨题库错题练习会把会话记到 questions[0] 的题库上。
 // 现在 JOIN 出 bank_name，跨库练习 bank_id 为 NULL，bank_name 显示为「错题练习」。
+//
+// 筛选参数（都可选，缺省行为不变）：
+//   bank_id                     按题库
+//   range=7d|30d|all            时间范围（含今天在内的最近 N 个北京自然日）
+//   min_accuracy / max_accuracy 正确率区间，整数百分比、闭区间
+//
+// 正确率用整数比较（correct*100 与 total*min 比）而不是浮点除法：
+// 既避免 SQLite 整数除法被截断，也避免浮点边界不稳；带正确率条件时
+// 一律排除 total_count = 0 的会话，防止除零。
 sessionRoutes.get('/', async (c) => {
   const { user } = currentAuth(c);
   const { page, perPage, offset } = readPagination(c, { defaultPerPage: 20, maxPerPage: 100 });
@@ -36,6 +60,29 @@ sessionRoutes.get('/', async (c) => {
     if (bankId === null) throw badRequest('bank_id 不合法');
     conditions.push('ps.bank_id = ?');
     params.push(bankId);
+  }
+
+  const rangeRaw = c.req.query('range');
+  if (rangeRaw !== undefined && rangeRaw !== 'all') {
+    const days = RANGE_DAYS[rangeRaw];
+    if (!days) throw badRequest('range 不合法');
+    const win = recentDayBounds(days);
+    conditions.push('ps.submitted_at >= ? AND ps.submitted_at < ?');
+    params.push(win.start, win.end);
+  }
+
+  const minAccuracy = readAccuracy(c.req.query('min_accuracy'), 'min_accuracy');
+  const maxAccuracy = readAccuracy(c.req.query('max_accuracy'), 'max_accuracy');
+  if (minAccuracy !== null || maxAccuracy !== null) {
+    conditions.push('ps.total_count > 0');
+    if (minAccuracy !== null) {
+      conditions.push('ps.correct_count * 100 >= ps.total_count * ?');
+      params.push(minAccuracy);
+    }
+    if (maxAccuracy !== null) {
+      conditions.push('ps.correct_count * 100 <= ps.total_count * ?');
+      params.push(maxAccuracy);
+    }
   }
 
   const where = `WHERE ${conditions.join(' AND ')}`;

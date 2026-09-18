@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { env } from 'cloudflare:test';
+import { toBeijingDate, toBeijingStamp } from '../src/lib/time';
 import {
     loginAs,
     createUserRow,
@@ -397,6 +398,73 @@ describe('练习记录', () => {
         expect((await get(`/api/sessions/${submit.data.session_id}`, bob.cookie)).status).toBe(404);
         expect((await get('/api/sessions', bob.cookie)).data.total).toBe(0);
     });
+
+    it('按时间范围筛选（range=7d 排除更早的记录）', async () => {
+        const { userId, cookie } = await loginAs('u1', 'pass1234');
+        const { bankId, questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
+
+        // 一条「今天」的走接口提交，一条 10 天前的直接写库
+        // （提交接口只会写当前时间，构造历史数据只能写库）
+        await post(
+            '/api/practice/submit',
+            { mode: 'random', answers: [{ question_id: questionIds[0]!, selected: 1 }] },
+            cookie,
+        );
+        await env.DB.prepare(
+            `INSERT INTO practice_sessions
+               (user_id, bank_id, mode, total_count, correct_count, wrong_count, unanswered_count, submitted_at)
+             VALUES (?, ?, 'random', 1, 1, 0, 0, ?)`,
+        )
+            .bind(userId, bankId, toBeijingStamp(Date.now() - 10 * 86_400_000))
+            .run();
+
+        expect((await get('/api/sessions', cookie)).data.total).toBe(2);
+        expect((await get('/api/sessions?range=7d', cookie)).data.total).toBe(1);
+        expect((await get('/api/sessions?range=30d', cookie)).data.total).toBe(2);
+        expect((await get('/api/sessions?range=all', cookie)).data.total).toBe(2);
+    });
+
+    it('按正确率区间筛选（整数百分比、闭区间）', async () => {
+        const { cookie } = await loginAs('u1', 'pass1234');
+        const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
+
+        // 全对（100%）与全错（0%）各一条
+        await post(
+            '/api/practice/submit',
+            { mode: 'random', answers: [{ question_id: questionIds[0]!, selected: 1 }] },
+            cookie,
+        );
+        await post(
+            '/api/practice/submit',
+            { mode: 'random', answers: [{ question_id: questionIds[2]!, selected: 1 }] },
+            cookie,
+        );
+
+        expect((await get('/api/sessions', cookie)).data.total).toBe(2);
+
+        const high = await get('/api/sessions?min_accuracy=80', cookie);
+        expect(high.data.total).toBe(1);
+        expect(high.data.sessions[0].correct_count).toBe(1);
+
+        const low = await get('/api/sessions?max_accuracy=59', cookie);
+        expect(low.data.total).toBe(1);
+        expect(low.data.sessions[0].correct_count).toBe(0);
+
+        // 闭区间：min=max=100 只留全对那条
+        const exact = await get('/api/sessions?min_accuracy=100&max_accuracy=100', cookie);
+        expect(exact.data.total).toBe(1);
+        expect(exact.data.sessions[0].correct_count).toBe(1);
+    });
+
+    it('非法筛选参数返回 400', async () => {
+        const { cookie } = await loginAs('u1', 'pass1234');
+
+        expect((await get('/api/sessions?range=1y', cookie)).status).toBe(400);
+        expect((await get('/api/sessions?min_accuracy=abc', cookie)).status).toBe(400);
+        expect((await get('/api/sessions?min_accuracy=101', cookie)).status).toBe(400);
+        expect((await get('/api/sessions?max_accuracy=60.5', cookie)).status).toBe(400);
+        expect((await get('/api/sessions?max_accuracy=-1', cookie)).status).toBe(400);
+    });
 });
 
 describe('仪表盘', () => {
@@ -422,6 +490,67 @@ describe('仪表盘', () => {
         expect(res.data.today_accuracy).toBeCloseTo(0.5);
         expect(res.data.today_new_wrong).toBe(1);
         expect(Array.isArray(res.data.today_wrong_per_bank)).toBe(true);
+    });
+
+    it('trend 恒为 7 项、日期连续升序，无练习的日子 accuracy 为 null', async () => {
+        const { cookie } = await loginAs('u1', 'pass1234');
+        const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
+        await post(
+            '/api/practice/submit',
+            { mode: 'random', answers: [{ question_id: questionIds[0]!, selected: 1 }] },
+            cookie,
+        );
+
+        const { data } = await get('/api/dashboard', cookie);
+        expect(data.trend).toHaveLength(7);
+
+        const days = data.trend.map((t: any) => t.day as string);
+        expect([...days].sort()).toEqual(days); // 升序
+        for (let i = 1; i < days.length; i++) {
+            const prev = Date.parse(days[i - 1]! + 'T00:00:00Z');
+            const cur = Date.parse(days[i]! + 'T00:00:00Z');
+            expect(cur - prev).toBe(86_400_000); // 相邻差一天，无跳日
+        }
+        expect(days[6]).toBe(toBeijingDate(Date.now())); // 最后一项是今天
+
+        // 只有今天有练习，之前 6 天是空白天
+        expect(data.trend[6].answered).toBe(1);
+        expect(data.trend[6].correct).toBe(1);
+        expect(data.trend[6].accuracy).toBeCloseTo(1);
+        expect(data.trend.slice(0, 6).every((t: any) => t.accuracy === null)).toBe(true);
+    });
+
+    it('recent_session 取最近一条；没有练习时为 null', async () => {
+        const blank = await loginAs('nobody', 'pass1234');
+        expect((await get('/api/dashboard', blank.cookie)).data.recent_session).toBeNull();
+
+        const { cookie } = await loginAs('u1', 'pass1234');
+        const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS, '我的题库');
+        const submit = await post(
+            '/api/practice/submit',
+            { mode: 'random', answers: [{ question_id: questionIds[0]!, selected: 1 }] },
+            cookie,
+        );
+
+        const recent = (await get('/api/dashboard', cookie)).data.recent_session;
+        expect(recent.id).toBe(submit.data.session_id);
+        expect(recent.bank_name).toBe('我的题库');
+        expect(recent.total_count).toBe(1);
+        expect(recent.accuracy).toBeCloseTo(1);
+    });
+
+    it('wrong_active_count 随错题产生而变化', async () => {
+        const { cookie } = await loginAs('u1', 'pass1234');
+        const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
+
+        expect((await get('/api/dashboard', cookie)).data.wrong_active_count).toBe(0);
+
+        await post(
+            '/api/practice/submit',
+            { mode: 'random', answers: [{ question_id: questionIds[2]!, selected: 1 }] },
+            cookie,
+        );
+        expect((await get('/api/dashboard', cookie)).data.wrong_active_count).toBe(1);
     });
 });
 

@@ -269,6 +269,16 @@ const App = {
         try {
             const data = await API.getDashboard();
             const perBank = data.today_wrong_per_bank || [];
+            const trend = Array.isArray(data.trend) ? data.trend : [];
+            const recent = data.recent_session;
+            const wrongCount = data.wrong_active_count || 0;
+
+            // 趋势摘要按整体算（总答对 / 总作答），不是把 7 天的百分比再平均 ——
+            // 否则练习量少的那天权重会被放大
+            const daysWithPractice = trend.filter((t) => t.accuracy !== null).length;
+            const answeredSum = trend.reduce((sum, t) => sum + (t.answered || 0), 0);
+            const correctSum = trend.reduce((sum, t) => sum + (t.correct || 0), 0);
+            const avgAccuracy = answeredSum > 0 ? correctSum / answeredSum : null;
 
             c.innerHTML = `
                 ${this.banner({ icon: 'dashboard', title: '仪表盘', subtitle: '今日学习概览' })}
@@ -313,10 +323,125 @@ const App = {
                            </div>`
                         : ''
                 }
+                <div class="dashboard-grid">
+                    <div class="card dashboard-panel">
+                        <div class="card-header"><h3>最近练习</h3></div>
+                        <div class="card-body">
+                            ${
+                                recent
+                                    ? `<div class="recent-session">
+                                           <div>
+                                               <div class="recent-session-bank">${esc(recent.bank_name)}</div>
+                                               <div class="recent-session-meta tnum">${esc(recent.submitted_at)} · 共 ${esc(recent.total_count)} 题</div>
+                                           </div>
+                                           <div class="recent-session-score tnum">${this.accuracyText(recent.correct_count, recent.total_count)}</div>
+                                       </div>
+                                       <button class="btn btn-secondary btn-block" id="btn-recent">查看详情</button>`
+                                    : `<div class="empty-state">${Icons.inbox}<p>还没有练习记录</p></div>
+                                       <button class="btn btn-primary btn-block" id="btn-start-practice">开始第一次练习</button>`
+                            }
+                        </div>
+                    </div>
+                    <div class="card dashboard-panel">
+                        <div class="card-header"><h3>最近 7 天正确率</h3></div>
+                        <div class="card-body">
+                            ${trend.length > 0 ? `<svg class="trend-chart" id="trend-chart" role="img" aria-label="最近 7 天正确率趋势"></svg>` : ''}
+                            <div class="trend-meta">
+                                ${
+                                    avgAccuracy === null
+                                        ? '最近 7 天还没有练习记录'
+                                        : `7 天平均正确率 <b class="tnum">${Math.round(avgAccuracy * 100)}%</b> · 练习 <b class="tnum">${daysWithPractice}</b> 天`
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card review-card${wrongCount > 0 ? ' is-active' : ''}">
+                    <div class="card-body review-body">
+                        <div class="review-icon">${Icons['circle-x']}</div>
+                        <div class="review-main">
+                            <div class="review-title">${wrongCount > 0 ? `有 ${esc(wrongCount)} 道错题待复习` : '暂无错题'}</div>
+                            <div class="review-desc">${
+                                wrongCount > 0
+                                    ? '趁热打铁，把错题再过一遍'
+                                    : '继续保持 —— 答错的题会自动收进错题本'
+                            }</div>
+                        </div>
+                        ${wrongCount > 0 ? `<button class="btn btn-primary" id="btn-review">去复习错题</button>` : ''}
+                    </div>
+                </div>
             `;
+
+            // 内联 SVG 的尺寸要等插入 DOM 之后才量得到，所以趋势图放在这里画
+            const trendSvg = document.getElementById('trend-chart');
+            if (trendSvg) this.paintTrend(trendSvg, trend);
+
+            const btnRecent = document.getElementById('btn-recent');
+            if (btnRecent && recent) {
+                btnRecent.onclick = () => {
+                    window.location.hash = '#/sessions/' + recent.id;
+                };
+            }
+            const btnStartPractice = document.getElementById('btn-start-practice');
+            if (btnStartPractice) {
+                btnStartPractice.onclick = () => {
+                    window.location.hash = '#/practice/pick';
+                };
+            }
+            const btnReview = document.getElementById('btn-review');
+            if (btnReview) {
+                btnReview.onclick = () => {
+                    window.location.hash = '#/wrongbook';
+                };
+            }
         } catch (error) {
             c.innerHTML = `<div class="error-msg">${esc(error.message)}</div>`;
         }
+    },
+
+    /**
+     * 画「最近 7 天正确率」折线。
+     *
+     * 两个必须绕开的坑：
+     *   1. CSP 是 style-src 'self'，内联 style 属性会被直接丢弃 ——
+     *      描边/填充/粗细一律写在 CSS 类里，坐标只走 SVG 属性。
+     *   2. SVG 不能拉伸：viewBox 与显示尺寸不一致时，preserveAspectRatio
+     *      用 meet 会在两侧留大片空白，用 none 会把圆点压成椭圆。
+     *      所以按容器实测宽度生成像素坐标，让 viewBox 与显示尺寸 1:1。
+     */
+    paintTrend(svg, trend) {
+        const H = 80;
+        const PAD_X = 10;
+        const PAD_Y = 12;
+        const W = Math.max(160, Math.round(svg.clientWidth || 320));
+        const n = trend.length;
+
+        const points = [];
+        trend.forEach((t, i) => {
+            if (t.accuracy === null || t.accuracy === undefined) return;
+            points.push({
+                x: PAD_X + (i * (W - PAD_X * 2)) / Math.max(1, n - 1),
+                y: H - PAD_Y - t.accuracy * (H - PAD_Y * 2),
+            });
+        });
+
+        svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        const base = `<line class="trend-base" x1="${PAD_X}" y1="${H - PAD_Y}" x2="${W - PAD_X}" y2="${H - PAD_Y}" />`;
+        // 只有一个数据点时画不出线，只留点
+        const line =
+            points.length >= 2
+                ? `<polyline class="trend-line" points="${points
+                      .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+                      .join(' ')}" />`
+                : '';
+        const dots = points
+            .map(
+                (p) =>
+                    `<circle class="trend-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" />`,
+            )
+            .join('');
+
+        svg.innerHTML = base + line + dots;
     },
 
     // ══════════════════════════════════════════════════════════
@@ -1470,18 +1595,60 @@ const App = {
         c.innerHTML = '<div class="loading">加载中...</div>';
         try {
             const currentPage = page || 1;
-            const data = await API.getSessions({
-                page: currentPage,
-                per_page: this.SESSIONS_PER_PAGE,
-            });
+            const filters = this.readSessionFilters();
+            // 题库下拉与记录列表一起取，避免串行两次往返
+            const [banks, data] = await Promise.all([
+                API.getBanks(),
+                API.getSessions({
+                    page: currentPage,
+                    per_page: this.SESSIONS_PER_PAGE,
+                    ...this.sessionQuery(filters),
+                }),
+            ]);
             const totalPages = Math.max(1, Math.ceil(data.total / data.per_page));
+            const hasFilter =
+                filters.bankId !== '' || filters.range !== 'all' || filters.accuracy !== 'all';
 
             c.innerHTML = `
                 ${this.banner({ icon: 'file-text', title: '练习记录', subtitle: `共 ${data.total} 条记录` })}
                 <div class="card"><div class="card-body">
+                    <div class="filter-bar">
+                        <label class="filter-field">
+                            <span class="filter-label">题库</span>
+                            <select class="form-input" id="f-bank">
+                                <option value="">全部题库</option>
+                                ${banks
+                                    .map(
+                                        (b) =>
+                                            `<option value="${b.id}"${String(b.id) === filters.bankId ? ' selected' : ''}>${esc(b.name)}</option>`
+                                    )
+                                    .join('')}
+                            </select>
+                        </label>
+                        <label class="filter-field">
+                            <span class="filter-label">时间范围</span>
+                            <select class="form-input" id="f-range">
+                                <option value="all"${filters.range === 'all' ? ' selected' : ''}>全部时间</option>
+                                <option value="7d"${filters.range === '7d' ? ' selected' : ''}>最近 7 天</option>
+                                <option value="30d"${filters.range === '30d' ? ' selected' : ''}>最近 30 天</option>
+                            </select>
+                        </label>
+                        <label class="filter-field">
+                            <span class="filter-label">正确率</span>
+                            <select class="form-input" id="f-accuracy">
+                                <option value="all"${filters.accuracy === 'all' ? ' selected' : ''}>全部</option>
+                                <option value="low"${filters.accuracy === 'low' ? ' selected' : ''}>低于 60%</option>
+                                <option value="mid"${filters.accuracy === 'mid' ? ' selected' : ''}>60% ~ 80%</option>
+                                <option value="high"${filters.accuracy === 'high' ? ' selected' : ''}>80% 以上</option>
+                            </select>
+                        </label>
+                        ${hasFilter ? '<button class="btn btn-sm btn-ghost" id="f-clear">清除筛选</button>' : ''}
+                    </div>
                     ${
                         data.sessions.length === 0
-                            ? `<div class="empty-state">${Icons.inbox}<p>暂无练习记录</p></div>`
+                            ? `<div class="empty-state">${Icons.inbox}<p>${
+                                  hasFilter ? '没有符合条件的记录' : '暂无练习记录'
+                              }</p></div>`
                             : `<div class="table-wrap"><table class="table">
                         <thead><tr><th>时间</th><th>题库</th><th>总题数</th><th>正确</th><th>错误</th><th>未答</th><th>正确率</th><th>操作</th></tr></thead>
                         <tbody>${data.sessions
@@ -1511,9 +1678,65 @@ const App = {
                 };
             });
             this.bindPagination('session-page', (p) => this.loadSessions(p));
+
+            // 改任一筛选控件就改写 hash —— 由 hashchange 触发重渲染，
+            // 页码因此自动回到第 1 页，筛选条件也会留在地址栏可复现
+            const applyFilters = () => {
+                const params = new URLSearchParams();
+                const bank = document.getElementById('f-bank').value;
+                const range = document.getElementById('f-range').value;
+                const accuracy = document.getElementById('f-accuracy').value;
+                if (bank) params.set('bank_id', bank);
+                if (range !== 'all') params.set('range', range);
+                if (accuracy !== 'all') params.set('accuracy', accuracy);
+                const qs = params.toString();
+                window.location.hash = '#/sessions' + (qs ? '?' + qs : '');
+            };
+            ['f-bank', 'f-range', 'f-accuracy'].forEach((id) => {
+                document.getElementById(id).onchange = applyFilters;
+            });
+            const clearBtn = document.getElementById('f-clear');
+            if (clearBtn) {
+                clearBtn.onclick = () => {
+                    window.location.hash = '#/sessions';
+                };
+            }
         } catch (error) {
             c.innerHTML = `<div class="error-msg">${esc(error.message)}</div>`;
         }
+    },
+
+    /**
+     * 从 hash 读练习记录的筛选条件。
+     * 取值只认白名单，手改 URL 写成别的值一律当未设置 ——
+     * 否则会把非法参数原样发给接口、拿到 400 页面。
+     */
+    readSessionFilters() {
+        const p = this.hashParams();
+        const range = p.get('range');
+        const accuracy = p.get('accuracy');
+        return {
+            bankId: p.get('bank_id') || '',
+            range: ['7d', '30d', 'all'].indexOf(range) >= 0 ? range : 'all',
+            accuracy: ['low', 'mid', 'high'].indexOf(accuracy) >= 0 ? accuracy : 'all',
+        };
+    },
+
+    /** 语义桶 → 接口的整数百分比闭区间 */
+    sessionQuery(filters) {
+        // 缺省值不进 query：range=all 服务端会忽略，发出去只会让 URL 变长
+        const q = {};
+        if (filters.range !== 'all') q.range = filters.range;
+        if (filters.bankId) q.bank_id = filters.bankId;
+        if (filters.accuracy === 'low') {
+            q.max_accuracy = 59;
+        } else if (filters.accuracy === 'mid') {
+            q.min_accuracy = 60;
+            q.max_accuracy = 79;
+        } else if (filters.accuracy === 'high') {
+            q.min_accuracy = 80;
+        }
+        return q;
     },
 
     async loadSessionDetail(id) {

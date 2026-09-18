@@ -358,6 +358,8 @@ textarea {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* 这些按钮有时是 <a>（导航类动作），去掉链接下划线 */
+    text-decoration: none;
     width: 100%;
     height: var(--space-12);
     border: none;
@@ -1699,4 +1701,103 @@ textarea {
     .m-result-ring-fill {
         transition: none;
     }
+}
+
+/* ═══════════════ 二十六、仪表盘新增三块与记录筛选 ═══════════════
+ * 与新版 app.js 对齐：最近练习 / 最近 7 天趋势 / 推荐复习，
+ * 以及练习记录页的筛选行。 */
+
+.m-recent-session {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.m-recent-score {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--brand-600);
+}
+
+/* 趋势折线：viewBox 由 JS 按实测宽度设置（1:1），这里只锁高度。
+   颜色与线宽一律走类 —— CSP 的 style-src 'self' 会丢弃内联 style 属性。 */
+.m-trend-chart {
+    display: block;
+    width: 100%;
+    height: 72px;
+    margin-bottom: var(--space-2);
+    overflow: visible;
+}
+
+.m-trend-base {
+    stroke: var(--ink-300);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+}
+
+.m-trend-line {
+    fill: none;
+    stroke: var(--brand-600);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.m-trend-dot {
+    fill: var(--surface);
+    stroke: var(--brand-600);
+    stroke-width: 2;
+}
+
+.m-trend-meta {
+    font-size: 13px;
+    color: var(--ink-500);
+}
+
+.m-trend-meta b {
+    color: var(--ink-900);
+}
+
+/* 推荐复习：有错题时用品牌浅底把它从白卡里拎出来 */
+.m-review-card.is-active {
+    border-color: var(--brand-400);
+    background: var(--brand-50);
+}
+
+.m-review-body {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.m-review-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.m-review-btn {
+    width: auto;
+    flex-shrink: 0;
+    padding: 0 var(--space-4);
+}
+
+/* 筛选行：三个下拉一行放不下就换行，等宽铺满 */
+.m-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.m-filter-select {
+    flex: 1 1 30%;
+    min-width: 96px;
+    padding: 0 var(--space-2);
+    font-size: 14px;
+}
+
+.m-clear-filter {
+    margin-bottom: var(--space-3);
 }

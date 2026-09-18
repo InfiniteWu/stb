@@ -78,6 +78,33 @@ export function nowStamp(clock: Clock = systemClock): string {
   return toBeijingStamp(clock());
 }
 
+/**
+ * 最近 N 个北京自然日的边界与日期列表。
+ *
+ * 用于「最近 7 天趋势」：`days` 从「今天 -(N-1) 天」到今天，升序，
+ * 调用方据此把没有练习的日期补成 0，前端不必自己排日历。
+ *
+ * 直接对毫秒做减法再取北京日 —— 中国不实行夏令时，一天恒为 24 小时，
+ * 所以不需要按日历逐日回退。
+ */
+export function recentDayBounds(
+  days: number,
+  clock: Clock = systemClock,
+): DayBounds & { days: string[] } {
+  const n = Math.max(1, Math.floor(days));
+  const now = clock();
+
+  const list: string[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    list.push(beijingDayBounds(now - i * DAY_MS).today);
+  }
+
+  const first = beijingDayBounds(now - (n - 1) * DAY_MS);
+  const last = beijingDayBounds(now);
+
+  return { start: first.start, end: last.end, today: last.today, days: list };
+}
+
 /** 当前北京自然日边界 */
 export function todayBounds(clock: Clock = systemClock): DayBounds {
   return beijingDayBounds(clock());

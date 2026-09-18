@@ -230,6 +230,19 @@ check('记录带 bank_name 而非裸 id', typeof sessions.data?.sessions?.[0]?.b
 const sid = submit.data.session_id;
 const detail = await req('GET', `/api/sessions/${sid}`);
 check('取练习详情', detail.status === 200, `实际 ${detail.status}`);
+
+// 新增的筛选参数
+const byRange = await req('GET', '/api/sessions?range=7d');
+check('range=7d 可筛选', byRange.status === 200 && typeof byRange.data?.total === 'number',
+  `实际 ${byRange.status}`);
+const byAccuracy = await req('GET', '/api/sessions?min_accuracy=0&max_accuracy=100');
+check('正确率区间可筛选', byAccuracy.status === 200 && typeof byAccuracy.data?.total === 'number',
+  `实际 ${byAccuracy.status}`);
+const badRange = await req('GET', '/api/sessions?range=1y');
+check('非法 range 返回 400', badRange.status === 400, `实际 ${badRange.status}`);
+const badAcc = await req('GET', '/api/sessions?min_accuracy=101');
+check('越界正确率返回 400', badAcc.status === 400, `实际 ${badAcc.status}`);
+
 const multiAnswer = detail.data?.answers?.find((a) => a.type === 'multiple');
 check(
   '多选题的 correct_answer 为数组',
@@ -244,6 +257,16 @@ check('仪表盘返回 200', dash.status === 200, `实际 ${dash.status}`);
 check('今日练习数 > 0', (dash.data?.today_practice_count ?? 0) > 0, JSON.stringify(dash.data));
 check('正确率为数值', typeof dash.data?.today_accuracy === 'number');
 check('错题分布为数组', Array.isArray(dash.data?.today_wrong_per_bank));
+check('trend 恒为 7 项', dash.data?.trend?.length === 7, `实际 ${dash.data?.trend?.length}`);
+check(
+  'trend 日期连续升序',
+  Array.isArray(dash.data?.trend) &&
+    dash.data.trend.every((t, i, arr) => i === 0 || t.day > arr[i - 1].day),
+  JSON.stringify(dash.data?.trend?.map((t) => t.day)),
+);
+check('recent_session 存在且含题库名', typeof dash.data?.recent_session?.bank_name === 'string',
+  JSON.stringify(dash.data?.recent_session));
+check('wrong_active_count 为数值', typeof dash.data?.wrong_active_count === 'number');
 
 // ── 导入（分批）──
 console.log('\n分批导入');
