@@ -74,6 +74,53 @@ const App = {
         this.hideLoading();
         document.getElementById('login-page').classList.remove('hidden');
         document.getElementById('main-app').classList.add('hidden');
+        this.loadLoginStats();
+    },
+
+    /**
+     * 登录页左侧数据条。
+     * 数字来自公开只读接口；取不到就保持隐藏 —— 不编数据（原来插画上的
+     * 「68%」与「错题本 ×1」就是这么来的，已随插画删除）。
+     */
+    async loadLoginStats() {
+        const box = document.getElementById('login-stats');
+        if (!box || this._loginStatsLoaded) return;
+        try {
+            const stats = await API.getPublicStats();
+            const fmt = (n) => Number(n || 0).toLocaleString('zh-CN');
+            document.getElementById('login-stat-q').textContent = fmt(stats.question_count);
+            document.getElementById('login-stat-b').textContent = fmt(stats.bank_count);
+            document.getElementById('login-stat-p').textContent = fmt(stats.practice_count);
+            box.classList.remove('hidden');
+            this._loginStatsLoaded = true;
+        } catch (e) {
+            box.classList.add('hidden');
+        }
+    },
+
+    /** 登录失败的内联提示（替代原来的 alert） */
+    setLoginError(message) {
+        const box = document.getElementById('login-error');
+        if (!box) return;
+        box.textContent = message || '登录失败，请稍后重试';
+        box.classList.remove('hidden');
+    },
+
+    clearLoginError() {
+        const box = document.getElementById('login-error');
+        if (!box) return;
+        box.textContent = '';
+        box.classList.add('hidden');
+    },
+
+    /** 缺字段时的水平抖动；动画结束即移除类，便于重复触发 */
+    shakeField(input) {
+        const wrap = input.closest('.field-wrap');
+        if (!wrap) return;
+        wrap.classList.remove('shake');
+        void wrap.offsetWidth; // 强制重排，让动画能重新开始
+        wrap.classList.add('shake');
+        wrap.addEventListener('animationend', () => wrap.classList.remove('shake'), { once: true });
     },
 
     showMainApp() {
@@ -121,14 +168,58 @@ const App = {
         if (!form || form.dataset.bound === '1') return;
         form.dataset.bound = '1';
 
+        const userInput = document.getElementById('username');
+        const passInput = document.getElementById('password');
+        const remember = document.getElementById('remember-me');
+        const btn = document.getElementById('login-submit');
+
+        // 密码显隐
+        const eye = document.getElementById('toggle-password');
+        eye.addEventListener('click', () => {
+            const show = passInput.type === 'password';
+            passInput.type = show ? 'text' : 'password';
+            eye.setAttribute('data-icon', show ? 'eye-off' : 'eye');
+            eye.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+            eye.setAttribute('aria-pressed', show ? 'true' : 'false');
+            this.hydrateIcons(eye.parentElement);
+        });
+
+        // 「忘记密码？」与「联系管理员开通」开同一个说明弹框。
+        // 桌面端不用 sms: —— 浏览器基本没有 SMS 处理器。
+        const dialog = document.getElementById('contact-dialog');
+        const openContact = () => dialog.showModal();
+        document.getElementById('open-contact').addEventListener('click', openContact);
+        document.getElementById('open-contact-2').addEventListener('click', openContact);
+        document.getElementById('contact-close').addEventListener('click', () => dialog.close());
+        // 原生 dialog 不默认支持点遮罩关闭：点遮罩时事件目标就是 dialog 本身
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) dialog.close();
+        });
+
+        // 用户一开始输入就撤掉上一次的失败提示
+        [userInput, passInput].forEach((input) => {
+            input.addEventListener('input', () => this.clearLoginError());
+        });
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const btn = form.querySelector('button[type="submit"]');
+            const username = userInput.value.trim();
+            const password = passInput.value;
             const originalText = btn ? btn.textContent : '';
 
-            if (!username || !password) return;
+            this.clearLoginError();
+
+            // 缺字段不再静默 return，抖一下并聚焦到该字段
+            if (!username) {
+                this.shakeField(userInput);
+                userInput.focus();
+                return;
+            }
+            if (!password) {
+                this.shakeField(passInput);
+                passInput.focus();
+                return;
+            }
 
             // 客户端要跑 600k 轮 PBKDF2（约 200ms），给出明确反馈
             if (btn) {
@@ -137,18 +228,18 @@ const App = {
             }
 
             try {
-                const result = await API.login(username, password);
+                // 「记住我」不勾选 → 服务端下发会话 Cookie，关掉浏览器下次要重新登录
+                const result = await API.login(username, password, remember.checked);
                 this.currentUser = result.user;
                 form.reset();
                 this.showMainApp();
                 window.location.hash = '#/';
             } catch (error) {
-                form.reset();
-                if (error.code === 'PASSWORD_RESET_REQUIRED') {
-                    alert(error.message);
-                } else {
-                    alert(error.message);
-                }
+                // 不再 form.reset() —— 旧实现失败时把用户名和密码一起清掉，
+                // 用户得整段重输。现在只清密码、保留用户名，并把光标放回密码框。
+                passInput.value = '';
+                this.setLoginError(error.message);
+                passInput.focus();
             } finally {
                 if (btn) {
                     btn.disabled = false;
@@ -157,107 +248,6 @@ const App = {
             }
         });
     },
-
-    initLogout() {
-        const btn = document.getElementById('logout-btn');
-        if (!btn || btn.dataset.bound === '1') return;
-        btn.dataset.bound = '1';
-        btn.onclick = async () => {
-            try {
-                await API.logout();
-            } catch (e) {
-                /* 登出应幂等，忽略失败 */
-            }
-            this.currentUser = null;
-            this.showLoginPage();
-        };
-    },
-
-    handleRoute() {
-        if (this._practiceKeyHandler) {
-            document.removeEventListener('keydown', this._practiceKeyHandler);
-            this._practiceKeyHandler = null;
-        }
-
-        const hash = window.location.hash || '#/';
-        const fullPath = hash.slice(1);
-        const path = fullPath.split('?')[0];
-
-        document.querySelectorAll('.nav-item').forEach((el) => {
-            el.classList.remove('active');
-            const href = (el.getAttribute('href') || '').slice(1);
-            if (href && (path === href || (href !== '/' && path.startsWith(href)))) {
-                el.classList.add('active');
-            }
-        });
-
-        if (path === '/' || path === '') this.loadDashboard();
-        else if (path === '/banks') this.loadBanks();
-        else if (path.match(/^\/banks\/\d+$/)) this.loadBankDetail(path.split('/')[2], 1);
-        else if (path === '/questions/new') this.loadQuestionForm();
-        else if (path.match(/^\/questions\/\d+\/edit$/)) this.loadQuestionForm(path.split('/')[2]);
-        else if (path === '/practice/pick') this.loadPracticePick();
-        else if (path === '/practice/do') this.loadPracticeDo();
-        else if (path === '/practice/result') this.loadPracticeResult();
-        else if (path === '/recite') this.loadRecite();
-        else if (path === '/wrongbook') this.loadWrongBook();
-        else if (path === '/sessions') this.loadSessions(1);
-        else if (path.match(/^\/sessions\/\d+$/)) this.loadSessionDetail(path.split('/')[2]);
-        else if (path === '/import') this.loadImport();
-        else if (path === '/users') this.loadUsers();
-        else if (path === '/profile') this.loadProfile();
-        else this.load404();
-    },
-
-    /** 安全地取 hash 上的查询参数（F10：无 ? 时不再传 undefined） */
-    hashParams() {
-        const hash = window.location.hash || '';
-        const qi = hash.indexOf('?');
-        return new URLSearchParams(qi === -1 ? '' : hash.slice(qi + 1));
-    },
-
-    getTypeLabel(type) {
-        const map = { single: '单选题', multiple: '多选题', truefalse: '判断题' };
-        return map[type] || type;
-    },
-
-    /**
-     * 页面 banner。
-     *
-     * 每个分页面顶部统一使用（答题页除外 —— 那里要把纵向空间全留给题目）。
-     * 背景由渐变、网格、光晕、文字遮罩四层构成，图标取自 Icons 模块，
-     * 因此图标仍然只有一份定义。
-     *
-     * @param {object} o
-     * @param {string} o.icon       Icons 中的图标名
-     * @param {string} o.title      标题
-     * @param {string} [o.subtitle] 副标题
-     * @param {string} [o.actions]  右侧操作区 HTML
-     */
-    banner({ icon, title, subtitle, actions }) {
-        return `
-            <section class="page-banner">
-                <div class="page-banner-bg" aria-hidden="true"></div>
-                <div class="page-banner-scrim" aria-hidden="true"></div>
-                <div class="page-banner-inner">
-                    <div class="page-banner-icon">${Icons[icon] || Icons.brand}</div>
-                    <div class="page-banner-text">
-                        <h1>${esc(title)}</h1>
-                        ${subtitle ? `<p>${esc(subtitle)}</p>` : ''}
-                    </div>
-                    ${actions ? `<div class="page-banner-actions">${actions}</div>` : ''}
-                </div>
-            </section>
-        `;
-    },
-
-    /** 正确率显示；F6：total 为 0 时不再出现 NaN% */
-    accuracyText(correct, total) {
-        if (!total || total <= 0) return '—';
-        return ((correct / total) * 100).toFixed(1) + '%';
-    },
-
-    escapeHtml: (v) => (window.esc ? esc(v) : String(v == null ? '' : v)),
 
     // ══════════════════════════════════════════════════════════
     // 仪表盘

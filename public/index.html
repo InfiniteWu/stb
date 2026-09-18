@@ -26,113 +26,43 @@
              登录页：整屏 12 栅格 —— 品牌展示 8 列 + 登录表单 4 列
              ══════════════════════════════════════════════════════ -->
         <div id="login-page" class="grid-12 hidden">
+            <!-- 品牌侧：与移动端登录页同一套语言（品牌条 / 招呼语 / 双色大标题 /
+                 副标题 / 真实数据条 / 功能说明）。原来那张「题目卡 + 68% 进度环 +
+                 错题本 ×1」的插画已删除 —— 那些数字是编造的，对还没登录的人
+                 展示「错题本 ×1」本身也说不通。 -->
             <div class="login-visual">
                 <div class="login-visual-bg" aria-hidden="true"></div>
                 <div class="login-visual-inner">
-                    <div class="login-cards">
-                        <svg class="login-illustration" viewBox="0 0 720 560"
-                             role="img" aria-label="题目卡片与答题结果示意图">
-                            <defs>
-                                <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
-                                    <feDropShadow dx="0" dy="24" stdDeviation="24"
-                                                  flood-color="#042f2e" flood-opacity="0.35"/>
-                                </filter>
-                            </defs>
+                    <div class="login-visual-body">
+                        <div class="login-brand-bar">
+                            <span class="login-brand-logo" data-icon="brand"></span>
+                            <span class="login-brand-title">二哥刷题宝</span>
+                            <span class="login-brand-ver">v2.0 · 智能</span>
+                        </div>
 
-                            <!-- 后层卡片 -->
-                            <g transform="rotate(-7 360 300)" opacity="0.55">
-                                <rect x="210" y="150" width="300" height="200" rx="20"
-                                      fill="#ffffff" fill-opacity="0.08"
-                                      stroke="#ffffff" stroke-opacity="0.20" stroke-width="2"/>
-                            </g>
+                        <p class="login-greet">👋 你好，欢迎回来</p>
+                        <h1 class="login-headline">
+                            继续你的<br>
+                            <span class="login-headline-hl">刷题进阶之旅</span>
+                        </h1>
+                        <p class="login-subtitle">海量真题题库 · 智能错题回顾 · 助你高效通过每一次考核</p>
 
-                            <!-- 中层卡片 -->
-                            <g transform="rotate(4 360 300)" opacity="0.78">
-                                <rect x="190" y="165" width="340" height="220" rx="22"
-                                      fill="#ffffff" fill-opacity="0.12"
-                                      stroke="#ffffff" stroke-opacity="0.26" stroke-width="2"/>
-                            </g>
+                        <!-- 数字来自公开只读接口；取不到就整条不显示，不编数据 -->
+                        <div class="login-stats hidden" id="login-stats">
+                            <div class="login-stat">
+                                <b class="tnum" id="login-stat-q">—</b>
+                                <span>道真题</span>
+                            </div>
+                            <div class="login-stat">
+                                <b class="tnum" id="login-stat-b">—</b>
+                                <span>套题库</span>
+                            </div>
+                            <div class="login-stat">
+                                <b class="tnum" id="login-stat-p">—</b>
+                                <span>次练习</span>
+                            </div>
+                        </div>
 
-                            <!-- 前层卡片：一道真实题目，第 3 行演示选中态 -->
-                            <g filter="url(#cardShadow)">
-                                <rect x="160" y="180" width="400" height="300" rx="24" fill="#ffffff"/>
-
-                                <!-- 题型徽章 -->
-                                <rect x="188" y="208" width="66" height="24" rx="12" fill="var(--brand-50)"/>
-                                <text x="221" y="225" text-anchor="middle" font-size="12"
-                                      font-family="system-ui, sans-serif" fill="var(--brand-700)">单选题</text>
-
-                                <!-- 题干 -->
-                                <rect x="188" y="250" width="344" height="10" rx="5" fill="var(--ink-300)"/>
-                                <rect x="188" y="270" width="256" height="10" rx="5" fill="var(--ink-300)"/>
-
-                                <!-- 选项 1（未选中） -->
-                                <rect x="188" y="308" width="344" height="36" rx="12"
-                                      fill="none" stroke="var(--ink-300)" stroke-width="2"/>
-                                <circle cx="212" cy="326" r="11" fill="var(--ink-100)"/>
-                                <text x="212" y="330" text-anchor="middle" font-size="11"
-                                      font-family="system-ui, sans-serif" fill="var(--ink-700)">A</text>
-                                <rect x="236" y="322" width="200" height="8" rx="4" fill="var(--ink-300)"/>
-
-                                <!-- 选项 2（未选中） -->
-                                <rect x="188" y="352" width="344" height="36" rx="12"
-                                      fill="none" stroke="var(--ink-300)" stroke-width="2"/>
-                                <circle cx="212" cy="370" r="11" fill="var(--ink-100)"/>
-                                <text x="212" y="374" text-anchor="middle" font-size="11"
-                                      font-family="system-ui, sans-serif" fill="var(--ink-700)">B</text>
-                                <rect x="236" y="366" width="160" height="8" rx="4" fill="var(--ink-300)"/>
-
-                                <!-- 选项 3（选中态：与设计系统的选中规范严格一致） -->
-                                <rect x="188" y="396" width="344" height="36" rx="12"
-                                      fill="var(--brand-50)" stroke="var(--brand-600)" stroke-width="2"/>
-                                <circle cx="212" cy="414" r="11" fill="var(--brand-600)"/>
-                                <text x="212" y="418" text-anchor="middle" font-size="11"
-                                      font-family="system-ui, sans-serif" fill="#ffffff">C</text>
-                                <rect x="236" y="410" width="220" height="8" rx="4" fill="var(--brand-200)"/>
-
-                                <!-- 选项 4（未选中） -->
-                                <rect x="188" y="440" width="344" height="36" rx="12"
-                                      fill="none" stroke="var(--ink-300)" stroke-width="2"/>
-                                <circle cx="212" cy="458" r="11" fill="var(--ink-100)"/>
-                                <text x="212" y="462" text-anchor="middle" font-size="11"
-                                      font-family="system-ui, sans-serif" fill="var(--ink-700)">D</text>
-                                <rect x="236" y="454" width="140" height="8" rx="4" fill="var(--ink-300)"/>
-                            </g>
-
-                            <!-- 成功徽章 -->
-                            <g transform="translate(566 404)">
-                                <circle r="48" fill="none" stroke="var(--success)"
-                                        stroke-opacity="0.25" stroke-width="2"/>
-                                <circle r="40" fill="var(--success)"/>
-                                <path d="M-16 0 L-5 11 L17 -11" fill="none" stroke="#ffffff"
-                                      stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-                            </g>
-
-                            <!-- 错题标签 -->
-                            <g transform="translate(84 452)">
-                                <rect width="128" height="34" rx="17"
-                                      fill="var(--warning)" fill-opacity="0.92"/>
-                                <text x="64" y="23" text-anchor="middle" font-size="14"
-                                      font-family="system-ui, sans-serif" fill="#ffffff">错题本 ×1</text>
-                            </g>
-
-                            <!-- 进度环 -->
-                            <g transform="translate(604 128)">
-                                <circle r="34" fill="none" stroke="#ffffff"
-                                        stroke-opacity="0.18" stroke-width="8"/>
-                                <circle r="34" fill="none" stroke="var(--brand-200)" stroke-width="8"
-                                        stroke-linecap="round" transform="rotate(-90)"
-                                        stroke-dasharray="145 214"/>
-                                <text y="6" text-anchor="middle" font-size="17"
-                                      font-family="system-ui, sans-serif" fill="#ffffff">68%</text>
-                            </g>
-                        </svg>
-                    </div>
-
-                    <div class="login-brand">
-                        <h1 class="login-brand-name">二哥刷题宝</h1>
-                        <p class="login-brand-tagline">智能刷题 · 高效学习</p>
-                        <div class="login-brand-rule"></div>
                         <ul class="login-features">
                             <li class="login-feature">
                                 <span class="login-feature-icon" data-icon="upload"></span>
@@ -161,20 +91,43 @@
                         <h2>欢迎回来</h2>
                         <p>请登录您的账户继续</p>
                     </div>
-                    <form id="login-form" class="login-form">
+                    <form id="login-form" class="login-form" novalidate>
+                        <!-- 登录失败的内联提示：原先用 alert()，阻塞且不可样式化 -->
+                        <div class="login-error hidden" id="login-error" role="alert"></div>
+
                         <div class="form-group">
                             <label for="username">用户名</label>
-                            <input type="text" id="username" name="username" class="form-input"
-                                   required placeholder="请输入用户名" autocomplete="username">
+                            <div class="field-wrap">
+                                <span class="field-icon" data-icon="user"></span>
+                                <input type="text" id="username" name="username" class="form-input"
+                                       required placeholder="请输入用户名" autocomplete="username">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="password">密码</label>
-                            <input type="password" id="password" name="password" class="form-input"
-                                   required placeholder="请输入密码" autocomplete="current-password">
+                            <div class="field-wrap">
+                                <span class="field-icon" data-icon="lock"></span>
+                                <input type="password" id="password" name="password" class="form-input"
+                                       required placeholder="请输入密码" autocomplete="current-password">
+                                <button type="button" class="field-eye" id="toggle-password" data-icon="eye"
+                                        aria-label="显示密码" aria-pressed="false"></button>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-block btn-lg">登录</button>
+
+                        <div class="login-assist">
+                            <label class="login-check">
+                                <input type="checkbox" id="remember-me" checked>
+                                <span>记住我</span>
+                            </label>
+                            <button type="button" class="login-link" id="open-contact">忘记密码？</button>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-block btn-lg" id="login-submit">登录</button>
                     </form>
-                    <div class="login-form-footer">© 二哥刷题宝</div>
+                    <div class="login-form-footer">
+                        <button type="button" class="login-link" id="open-contact-2">联系管理员开通</button>
+                        <span>© 二哥刷题宝</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -255,6 +208,29 @@
             </main>
         </div>
     </div>
+
+    <!-- 「联系管理员」说明弹框。
+         桌面端不用 sms: —— 浏览器基本没有 SMS 处理器，点了要么没反应、
+         要么交给系统里不相干的程序。这里用原生 <dialog>：Esc 关闭、焦点锁在
+         框内、背景 inert、::backdrop 遮罩都是浏览器给的。 -->
+    <dialog id="contact-dialog" class="contact-dialog" aria-labelledby="contact-title">
+        <div class="contact-dialog-head">
+            <h2 id="contact-title">联系管理员</h2>
+            <button type="button" class="contact-dialog-close" id="contact-close"
+                    data-icon="x" aria-label="关闭"></button>
+        </div>
+        <p class="contact-dialog-desc">刷题宝账号的开通与密码重置由管理员统一处理，请通过下面的方式联系。</p>
+        <div class="contact-dialog-phone">
+            <span class="contact-dialog-label">手机号码</span>
+            <span class="contact-dialog-number tnum">17185193120</span>
+        </div>
+        <p class="contact-dialog-hint">为便于处理，请一并说明：</p>
+        <ul class="contact-dialog-list">
+            <li>你的用户名</li>
+            <li>统一身份账号名</li>
+            <li>是要开通账号，还是重置密码</li>
+        </ul>
+    </dialog>
 
     <script src="js/mobile-redirect.js"></script>
     <script src="js/escape.js"></script>

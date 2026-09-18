@@ -518,6 +518,17 @@ textarea {
     height: 18px;
 }
 
+/* 登录失败的内联提示（替代 alert） */
+.m-login-error {
+    margin-bottom: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--warning);
+    background: var(--warning-soft);
+}
+
 .m-login-assist {
     display: flex;
     align-items: center;

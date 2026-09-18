@@ -215,6 +215,8 @@ const App = {
                     <p class="m-login-subtitle">输入账号信息继续学习</p>
 
                     <form id="login-form" novalidate>
+                        <!-- 登录失败的内联提示：原先用 alert()，阻塞且会顶起页面 -->
+                        <p class="m-login-error m-hidden" id="login-error" role="alert"></p>
                         <div class="m-login-field">
                             <label for="login-user">用户名</label>
                             <div class="m-input-wrap">
@@ -260,6 +262,15 @@ const App = {
         const userInput = document.getElementById('login-user');
         const passInput = document.getElementById('login-pass');
         const eye = document.getElementById('login-eye');
+        const errorBox = document.getElementById('login-error');
+
+        // 用户一开始输入就撤掉上一次的失败提示
+        [userInput, passInput].forEach((input) => {
+            input.addEventListener('input', () => {
+                errorBox.textContent = '';
+                errorBox.classList.add('m-hidden');
+            });
+        });
 
         // 两条短信链接：号码 + 正文（正文按平台拼分隔符）
         document.getElementById('login-signup').setAttribute('href', this.smsHref(SMS_SIGNUP));
@@ -322,7 +333,10 @@ const App = {
                 this.updateTabBar();
                 window.location.hash = '#/';
             } catch (err) {
-                alert(err.message);
+                // 不再 alert：内联提示不阻塞、可样式化，也不会顶起页面
+                const box = document.getElementById('login-error');
+                box.textContent = err.message || '登录失败，请稍后重试';
+                box.classList.remove('m-hidden');
             } finally {
                 btn.disabled = false;
                 label.textContent = '登录';

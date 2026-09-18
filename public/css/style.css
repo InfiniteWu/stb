@@ -2028,55 +2028,129 @@ input[type="radio"]:focus-visible {
     flex: 1;
     align-self: stretch;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-8);
-    padding: var(--space-12);
+    align-items: center;
+    padding: var(--space-16) var(--space-12);
 }
 
-.login-illustration {
-    display: block;
+/* 品牌区主体：与移动端登录页同一套内容（品牌条 / 招呼语 / 双色大标题 /
+   副标题 / 真实数据条 / 功能说明），只是桌面端更宽松、字号大一档。 */
+.login-visual-body {
     width: 100%;
-    max-width: 520px;
-    margin: 0 auto;
-    flex-shrink: 0;
-    color: var(--surface);
+    max-width: 560px;
 }
 
-.login-brand {
-    /* 字标压到左下角 */
-    margin-top: auto;
+.login-brand-bar {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: var(--space-3);
 }
 
-.login-brand-name {
-    font-size: clamp(32px, 3.4vw, 44px);
-    font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
+.login-brand-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.16);
     color: var(--surface);
 }
 
-.login-brand-tagline {
-    max-width: 44ch;
-    font-size: 16px;
-    line-height: 1.6;
+.login-brand-logo svg {
+    width: 20px;
+    height: 20px;
+}
+
+.login-brand-title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* 版本胶囊：与移动端同一处标记 */
+.login-brand-ver {
+    /* 贴着品牌名，而不是靠 auto margin 飘到正文框右端 ——
+       桌面端正文宽 560px，飘过去的落点看起来是随意的 */
+    margin-left: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.14);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.login-greet {
+    margin-top: var(--space-12);
+    font-size: 15px;
     color: rgba(255, 255, 255, 0.78);
 }
 
-.login-brand-rule {
-    width: 64px;
-    height: 1px;
-    border: 0;
-    background: rgba(255, 255, 255, 0.18);
+.login-headline {
+    margin-top: var(--space-2);
+    font-size: clamp(32px, 3.4vw, 44px);
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+}
+
+/* 第二行用品牌色阶做渐变文字。设计稿给的是暖色高亮，但全站约定只有
+   3 个色相（品牌青绿 / 成功绿 / 警示红），引琥珀就是第 4 个色相。 */
+.login-headline-hl {
+    background: linear-gradient(90deg, var(--brand-200) 0%, var(--brand-400) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+.login-subtitle {
+    margin-top: var(--space-5);
+    font-size: 16px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* 玻璃数据条：数字来自公开只读接口，取不到时整条不渲染 */
+.login-stats {
+    display: flex;
+    margin-top: var(--space-8);
+    padding: var(--space-5) var(--space-4);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.login-stat {
+    flex: 1;
+    text-align: center;
+}
+
+.login-stat + .login-stat {
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.login-stat b {
+    display: block;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.login-stat span {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .login-features {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+    margin-top: var(--space-8);
     /* 全局重置只清了内外边距，列表符号要单独去掉 */
     list-style: none;
 }
@@ -2113,28 +2187,6 @@ input[type="radio"]:focus-visible {
 .login-feature-icon > svg {
     width: 20px;
     height: 20px;
-}
-
-.login-cards {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    width: 100%;
-    max-width: 520px;
-    margin: 0 auto;
-    animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-    0%,
-    100% {
-        transform: translateY(-6px);
-    }
-
-    50% {
-        transform: translateY(6px);
-    }
 }
 
 .login-form-side {
@@ -2205,10 +2257,158 @@ input[type="radio"]:focus-visible {
     margin-bottom: var(--space-5);
 }
 
-.login-form .form-input {
-    padding: var(--space-3) var(--space-4);
-    font-size: 15px;
+/* 字段外壳：图标 + 输入框 + 可选的眼睛按钮。
+   焦点光晕挂在外壳上（:focus-within），这样点图标也算聚焦到该字段。
+   用后代选择器而不是给 input 再加类 —— 同优先级下 .form-input 可能反过来盖掉。 */
+.field-wrap {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    /* 高度定在外壳上：52px 是含 2px 边框的总高，与移动端登录页一致；
+       若定在 input 上会变成 52 + 上下边框 = 56 */
+    height: 52px;
+    padding: 0 var(--space-4);
+    border: 2px solid var(--ink-300);
     border-radius: var(--radius-md);
+    background: var(--surface-sunken);
+    transition: var(--transition);
+}
+
+.field-wrap:focus-within {
+    border-color: var(--brand-600);
+    background: var(--surface);
+    box-shadow: 0 0 0 4px var(--brand-100);
+}
+
+.field-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--ink-500);
+}
+
+.field-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* 外壳里的输入框去掉自己的边框与内边距，表现统一交给外壳。
+   焦点轮廓也交给外壳那圈 4px 光晕，比 2px 细线更明显。 */
+.login-form .field-wrap .form-input,
+.login-form .field-wrap .form-input:focus,
+.login-form .field-wrap .form-input:focus-visible {
+    height: 100%;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+    font-size: 15px;
+}
+
+.field-eye {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-500);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.field-eye:hover {
+    color: var(--ink-900);
+}
+
+.field-eye svg {
+    width: 20px;
+    height: 20px;
+}
+
+.login-assist {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+    font-size: 13px;
+}
+
+.login-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--ink-700);
+    cursor: pointer;
+}
+
+.login-check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--brand-600);
+}
+
+/* 「忘记密码？」与「联系管理员开通」是 button —— 桌面端没有 sms:，
+   点了开说明弹框，所以要把按钮的默认外观抹掉 */
+.login-link {
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--brand-700);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.login-link:hover {
+    color: var(--brand-600);
+}
+
+/* 登录失败的内联提示：替代原来的 alert() */
+.login-error {
+    margin-bottom: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--warning);
+    background: var(--warning-soft);
+}
+
+/* 缺字段时的水平抖动；动画结束即移除类，便于重复触发 */
+.shake {
+    animation: login-shake 300ms var(--ease);
+}
+
+@keyframes login-shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    20% {
+        transform: translateX(-6px);
+    }
+    40% {
+        transform: translateX(6px);
+    }
+    60% {
+        transform: translateX(-4px);
+    }
+    80% {
+        transform: translateX(4px);
+    }
 }
 
 .login-form .btn {
@@ -2219,50 +2419,117 @@ input[type="radio"]:focus-visible {
 }
 
 .login-form-footer {
-    margin-top: var(--space-6);
-    font-size: 13px;
-    text-align: center;
-    color: var(--ink-500);
-}
-
-/* ── 旧版登录页结构（HTML 尚未替换前仍需可用）─────────────────── */
-
-#particles-canvas {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-
-.login-visual-content {
-    position: relative;
-    z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-6);
+    font-size: 13px;
+    color: var(--ink-500);
+}
+
+/* ── 「联系管理员」说明弹框 ──────────────────────────────────
+   桌面端不用 sms:（浏览器基本没有 SMS 处理器），改用原生 <dialog>：
+   Esc 关闭、焦点锁在框内、背景 inert、::backdrop 遮罩都是浏览器给的。 */
+.contact-dialog {
+    width: min(440px, calc(100vw - var(--space-8)));
+    /* 全局重置的 `* { margin: 0 }` 会把 dialog 的 UA `margin: auto` 清掉，
+       而弹窗居中正是靠它 —— 不写回来就会贴在左上角 */
+    margin: auto;
+    padding: var(--space-6);
+    border: 2px solid var(--ink-300);
+    border-radius: var(--radius-lg);
+    color: var(--ink-900);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+}
+
+.contact-dialog::backdrop {
+    background: rgba(15, 26, 24, 0.46);
+}
+
+.contact-dialog-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--space-4);
-    padding: var(--space-12);
-    text-align: center;
-    color: var(--surface);
+    margin-bottom: var(--space-3);
 }
 
-.login-visual-content h1 {
-    margin-bottom: var(--space-4);
-    font-size: 40px;
+.contact-dialog-head h2 {
+    font-size: 18px;
     font-weight: 700;
-    letter-spacing: -0.03em;
-    text-shadow: 0 2px 20px rgba(28, 25, 23, 0.25);
 }
 
-.login-visual-content p {
-    max-width: 400px;
-    font-size: 16px;
+.contact-dialog-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-500);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.contact-dialog-close:hover {
+    background: var(--ink-100);
+    color: var(--ink-900);
+}
+
+.contact-dialog-close svg {
+    width: 20px;
+    height: 20px;
+}
+
+.contact-dialog-desc {
+    font-size: 14px;
     line-height: 1.6;
-    color: rgba(255, 255, 255, 0.78);
+    color: var(--ink-700);
 }
 
+.contact-dialog-phone {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin: var(--space-5) 0;
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--brand-50);
+}
+
+.contact-dialog-label {
+    font-size: 13px;
+    color: var(--ink-500);
+}
+
+/* 没有复制按钮，至少要能手动选中；.tnum 已在别处定义等宽数字 */
+.contact-dialog-number {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--brand-700);
+    user-select: text;
+}
+
+.contact-dialog-hint {
+    font-size: 13px;
+    color: var(--ink-500);
+}
+
+.contact-dialog-list {
+    margin-top: var(--space-2);
+    padding-left: var(--space-5);
+    list-style: disc;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--ink-700);
+}
 
 /* ═══════════════════════════════════════════════════════════════
  * 18 · 状态提示、徽章与 404
@@ -2567,26 +2834,24 @@ input[type="radio"]:focus-visible {
 
     .login-visual-inner {
         align-items: center;
-        gap: var(--space-4);
-        justify-content: center;
         padding: var(--space-6);
-        text-align: center;
     }
 
-    .login-illustration {
-        display: none;
+    /* 240px 的品牌带只放得下品牌条与大标题，其余收起 */
+    .login-visual-body {
+        max-width: none;
     }
 
+    .login-greet,
+    .login-subtitle,
+    .login-stats,
     .login-features {
         display: none;
     }
 
-    .login-cards {
-        display: none;
-    }
-
-    .login-brand {
-        margin-top: 0;
+    .login-headline {
+        margin-top: var(--space-3);
+        font-size: 26px;
     }
 
     .login-form-side {
