@@ -19,12 +19,12 @@
  *      边框宽度在任何状态下都恒为 2px —— 只换颜色，不换宽度，
  *      否则点击选中时会出现 1px 抖动。
  *   6. 侧边栏导航 .nav-item 是上述契约的**例外**，改用「无边框 + 底纹」：
- *          默认 无边框 / 透明   / --ink-700
+ *          默认 无边框 / 透明       / --ink-700
  *          悬停 无边框 / --brand-50  / --ink-900
- *          选中 无边框 / --brand-100 / --ink-900
- *      侧栏是常驻导航，每个条目都描一圈边框会让整条侧栏显得拥挤；用一块
- *      明显的品牌底纹表达「当前在哪一页」更直接。字号 16px（≤1280px 降为
- *      14px，与断点处「侧栏变窄、导航降一档」的处理一致）。
+ *          选中 无边框 / --brand-600 / --surface（品牌实心，文字与图标转白）
+ *      侧栏是常驻导航，每个条目都描一圈边框会让整条侧栏显得拥挤；当前页直接
+ *      用品牌实心块表达最直接。字号 16px（≤1280px 降为 14px，与断点处
+ *      「侧栏变窄、导航降一档」的处理一致）。
  *   7. 阴影只用 --shadow-sm / --shadow-md / --shadow-lg。
  *   8. 动效只用 --duration / --ease；tokens.css 已在
  *      prefers-reduced-motion 下全局禁用动效，本文件不得用 !important 覆盖。
@@ -675,10 +675,11 @@ input[type="radio"]:focus-visible {
     background: var(--brand-50);
 }
 
-/* 用一块明显的品牌底纹表达「当前在哪一页」，不再依赖边框与光环 */
+/* 当前页直接用品牌主色实心表达（与 .nav-q.current、.btn-primary 同一套语言），
+   文字转白；图标是 currentColor，跟着一起变白。 */
 .nav-item.active {
-    color: var(--ink-900);
-    background: var(--brand-100);
+    color: var(--surface);
+    background: var(--brand-600);
 }
 
 .nav-item .icon {
