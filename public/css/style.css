@@ -780,6 +780,16 @@ input[type="radio"]:focus-visible {
     align-content: start;
 }
 
+/* 纵向节奏：容器只设了 column-gap，块与块的间距靠各块自己的 margin-bottom。
+   .card 没有下边距，于是「卡片 → 下一个块」一直是 0 间距（仪表盘里
+   今日错题分布 → 最近练习、个人设置、导入题库都出现过）。这里按仪表盘
+   其它相邻块的通行间距（--space-6 = 24px）统一补上。
+   只作用于直接子级，避免影响 .dashboard-grid 内部并排的面板；
+   排除最后一个，免得页面尾部多出一截空白。 */
+#page-container > .card:not(:last-child) {
+    margin-bottom: var(--space-6);
+}
+
 .page-header {
     grid-column: 1 / -1;
     display: flex;
