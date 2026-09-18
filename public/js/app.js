@@ -1273,7 +1273,7 @@ const App = {
                             <button class="btn btn-secondary" ${
                                 state.idx === 0 ? 'disabled' : ''
                             } id="btn-prev">${Icons['arrow-left']} 上一题</button>
-                            <button class="btn btn-primary" ${
+                            <button class="btn btn-secondary" ${
                                 state.idx >= total - 1 ? 'disabled' : ''
                             } id="btn-next">${state.loading ? '加载中…' : '下一题'} ${Icons['arrow-right']}</button>
                         </div>
@@ -1614,7 +1614,7 @@ const App = {
                             </div>
                             <div class="practice-actions">
                                 <button class="btn btn-secondary" ${idx === 0 ? 'disabled' : ''} id="btn-prev">${Icons['arrow-left']} 上一题</button>
-                                <button class="btn btn-primary" ${idx === total - 1 ? 'disabled' : ''} id="btn-next">下一题 ${Icons['arrow-right']}</button>
+                                <button class="btn btn-secondary" ${idx === total - 1 ? 'disabled' : ''} id="btn-next">下一题 ${Icons['arrow-right']}</button>
                             </div>
                         </div>
                         <div class="practice-sidebar">
@@ -1641,21 +1641,33 @@ const App = {
                         renderDetail();
                     });
                 });
-                document.getElementById('btn-prev').addEventListener('click', () => {
-                    if (idx > 0) {
-                        idx--;
-                        renderDetail();
-                    }
-                });
-                document.getElementById('btn-next').addEventListener('click', () => {
-                    if (idx < total - 1) {
-                        idx++;
-                        renderDetail();
-                    }
-                });
+                document.getElementById('btn-prev').addEventListener('click', () => go(-1));
+                document.getElementById('btn-next').addEventListener('click', () => go(1));
+            };
+
+            /** 切上一题 / 下一题（按钮与键盘共用；越界则不动） */
+            const go = (dir) => {
+                const target = idx + dir;
+                if (target < 0 || target >= total) return;
+                idx = target;
+                renderDetail();
             };
 
             renderDetail();
+
+            // 键盘 ← / → 切题，与答题页一致。
+            // handleRoute() 每次都会先移除上一页注册的处理器，无需在这里清理。
+            this._practiceKeyHandler = (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    go(-1);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    go(1);
+                }
+            };
+            document.addEventListener('keydown', this._practiceKeyHandler);
         } catch (error) {
             c.innerHTML = `<div class="error-msg">${esc(error.message)}</div>`;
         }
