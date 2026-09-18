@@ -1073,14 +1073,21 @@ input[type="radio"]:focus-visible {
     color: var(--ink-500);
 }
 
-/* 错题本的操作行：练习与背题两个入口平级，不再塞进 Banner */
+/* 错题本的操作行：练习与背题两个入口平级。
+   刻意不套 .card 外壳 —— 那个框带 2px 边框 + 阴影 + 24px 内边距，
+   对两个按钮来说太"重"也太高。这里就是一条普通工具行：无边框、无底色，
+   高度即按钮高度。不另加底色还有个原因：.btn-secondary 的底色就是
+   --ink-100，与 --surface-sunken 同色，加了底那次按钮会直接隐形。
+   grid-column 必须自己写：它现在是 #page-container 的直接子级，
+   不写只会占 1 列。 */
 .wrongbook-actions {
+    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
     flex-wrap: wrap;
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--space-6);
 }
 
 .wrongbook-actions-hint {

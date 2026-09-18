@@ -1677,13 +1677,13 @@ const App = {
                 ${this.banner({ icon: 'circle-x', title: '错题本', subtitle: `共 ${records.length} 道错题` })}
                 ${
                     records.length > 0
-                        ? `<div class="card"><div class="card-body wrongbook-actions">
+                        ? `<div class="wrongbook-actions">
                                <div class="wrongbook-actions-hint">可以直接抽题练习，也可以进入背题模式逐题看解析。</div>
                                <div class="wrongbook-actions-buttons">
                                    <button class="btn btn-primary" id="btn-wrong-practice">练习错题</button>
                                    <button class="btn btn-secondary" id="btn-wrong-recite">学习错题</button>
                                </div>
-                           </div></div>`
+                           </div>`
                         : ''
                 }
                 <div class="card"><div class="card-body">
