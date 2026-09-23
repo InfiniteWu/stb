@@ -37,7 +37,21 @@ const WRONG_SELECT = `
          (SELECT COUNT(*) FROM practice_answers pa
             JOIN practice_sessions ps ON pa.session_id = ps.id
            WHERE ps.user_id = wb.user_id AND pa.question_id = wb.question_id
-             AND pa.is_correct = 1) AS correct_count
+             AND pa.is_correct = 1) AS correct_count,
+         -- 当前「连续答对」数 = 最近一次非答对（答错或未作答）之后的答对次数。
+         -- 与服务端移出规则（最近 5 次全对）严格等价：streak >= 5 ⇔ 会被移出，
+         -- 所以界面上的 X / 5 与「还差几次」始终对得上。
+         -- 此前界面用的是 correct_count（历史累计），答错后不会归零，
+         -- 会出现「显示 5/5 却没被移出」的矛盾。
+         (SELECT COUNT(*) FROM practice_answers pa3
+            JOIN practice_sessions ps3 ON pa3.session_id = ps3.id
+           WHERE ps3.user_id = wb.user_id AND pa3.question_id = wb.question_id
+             AND pa3.id > COALESCE((
+                   SELECT MAX(pa4.id) FROM practice_answers pa4
+                     JOIN practice_sessions ps4 ON pa4.session_id = ps4.id
+                    WHERE ps4.user_id = wb.user_id AND pa4.question_id = wb.question_id
+                      AND (pa4.is_correct IS NULL OR pa4.is_correct <> 1)
+                 ), 0)) AS streak
   FROM wrong_book wb
   JOIN questions q ON wb.question_id = q.id
   JOIN question_banks qb ON wb.bank_id = qb.id

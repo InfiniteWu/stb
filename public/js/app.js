@@ -1700,7 +1700,7 @@ const App = {
                                 <td class="stem-cell">${esc(r.stem.length > 50 ? r.stem.slice(0, 50) + '…' : r.stem)}</td>
                                 <td>${esc(r.bank_name)}</td>
                                 <td class="tnum">${esc(r.error_count)}</td>
-                                <td class="tnum">${esc(r.correct_count || 0)} / 5</td>
+                                <td class="tnum">${esc(r.streak || 0)} / 5</td>
                                 <td><button class="btn btn-sm btn-ghost" data-remove-wrong="${r.id}">移除</button></td>
                             </tr>`
                             )

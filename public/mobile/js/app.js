@@ -1202,7 +1202,7 @@ const App = {
                         </div>
                         <div class="m-wrong-stem">${esc(r.stem)}</div>
                         <div class="m-wrong-footer">
-                            <span class="m-wrong-meta tnum">错 ${esc(r.error_count)} 次 · 对 ${esc(r.correct_count || 0)}/5</span>
+                            <span class="m-wrong-meta tnum">错 ${esc(r.error_count)} 次 · 连对 ${esc(r.streak || 0)}/5</span>
                             <button class="m-btn m-btn-secondary m-btn-sm" data-remove-wrong="${r.id}">移除</button>
                         </div>
                     </div>`

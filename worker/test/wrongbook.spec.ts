@@ -103,6 +103,40 @@ describe('错题本', () => {
         expect(wb.data).toHaveLength(1);
     });
 
+    it('界面显示的「连续正确」是当前连续数，答错即归零（此前显示的是历史累计）', async () => {
+        const { cookie } = await loginAs('u1', 'pass1234');
+        const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
+        const qid = questionIds[0]!;
+
+        await answerOne(cookie, qid, 0); // 错
+        for (let i = 0; i < 3; i++) await answerOne(cookie, qid, 1); // 对对对
+        expect((await get('/api/wrongbook', cookie)).data[0].streak).toBe(3);
+
+        // 又答错 → 当前连续数归零；历史累计仍是 3（这正是之前界面显示错的地方）
+        await answerOne(cookie, qid, 0);
+        const after = (await get('/api/wrongbook', cookie)).data[0];
+        expect(after.streak).toBe(0);
+        expect(after.correct_count).toBe(3);
+
+        // 必须重新连对 5 次才会移出：4 次还不够
+        for (let i = 0; i < 4; i++) await answerOne(cookie, qid, 1);
+        expect((await get('/api/wrongbook', cookie)).data).toHaveLength(1);
+
+        await answerOne(cookie, qid, 1); // 第 5 次
+        expect((await get('/api/wrongbook', cookie)).data).toHaveLength(0);
+    });
+
+    it('未作答会打断连续数（与服务端「最近 5 次全对」的口径一致）', async () => {
+        const { cookie } = await loginAs('u1', 'pass1234');
+        const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
+        const qid = questionIds[0]!;
+
+        await answerOne(cookie, qid, 0);
+        for (let i = 0; i < 3; i++) await answerOne(cookie, qid, 1);
+        await answerOne(cookie, qid, null); // 跳过不算答对，连续中断
+        expect((await get('/api/wrongbook', cookie)).data[0].streak).toBe(0);
+    });
+
     it('error_count / correct_count 按用户隔离（旧实现会串到他人数据）', async () => {
         const alice = await loginAs('alice', 'pass1234');
         const bob = await loginAs('bob', 'pass1234');
