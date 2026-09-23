@@ -1254,7 +1254,11 @@ const App = {
             // 有未作答时先确认：误点一次就会结束本次练习。
             // 未作答按服务端口径判定，与结果页的「未答」数一致。
             const unanswered = payload.filter((p) => isUnansweredSelection(p.selected)).length;
-            if (unanswered > 0 && !confirm(`还有 ${unanswered} 道题未作答，确定交卷吗？`)) return;
+            if (
+                unanswered > 0 &&
+                !confirm(`还有 ${unanswered} 道题未作答，交卷后将按答错计入错题本，确定交卷吗？`)
+            )
+                return;
 
             document.removeEventListener('keydown', self._practiceKeyHandler);
 
@@ -1636,7 +1640,7 @@ const App = {
                         <div class="result-stat"><div class="result-stat-value tnum">${r.total_count}</div><div class="result-stat-label">总题数</div></div>
                         <div class="result-stat"><div class="result-stat-value correct tnum">${r.correct_count}</div><div class="result-stat-label">正确</div></div>
                         <div class="result-stat"><div class="result-stat-value wrong tnum">${r.wrong_count}</div><div class="result-stat-label">错误</div></div>
-                        <div class="result-stat"><div class="result-stat-value unanswered tnum">${r.unanswered_count}</div><div class="result-stat-label">未答</div></div>
+                        <div class="result-stat"><div class="result-stat-value unanswered tnum">${r.unanswered_count}</div><div class="result-stat-label">其中未答</div></div>
                     </div>
                 </div>
                 <div class="result-actions">
@@ -1817,7 +1821,7 @@ const App = {
                                   hasFilter ? '没有符合条件的记录' : '暂无练习记录'
                               }</p></div>`
                             : `<div class="table-wrap"><table class="table">
-                        <thead><tr><th>时间</th><th>题库</th><th>总题数</th><th>正确</th><th>错误</th><th>未答</th><th>正确率</th><th>操作</th></tr></thead>
+                        <thead><tr><th>时间</th><th>题库</th><th>总题数</th><th>正确</th><th>错误</th><th>其中未答</th><th>正确率</th><th>操作</th></tr></thead>
                         <tbody>${data.sessions
                             .map(
                                 (s) => `
@@ -1930,7 +1934,9 @@ const App = {
                 const a = data.answers[idx];
                 const correctIdxs = toIndexArray(a.correct_answer);
                 const selectedIdxs = toIndexArray(a.selected_answer);
-                const unanswered = a.is_correct === null && selectedIdxs.length === 0;
+                // 未作答：历史数据记 is_correct = null，新数据记 0（未答算答错），
+                // 所以这里两种都认 —— 看 selected_answer 是否为空即可
+                const unanswered = a.is_correct === null || selectedIdxs.length === 0;
 
                 let navHtml = '';
                 for (let i = 0; i < total; i++) {
@@ -1950,7 +1956,6 @@ const App = {
                     }>${i + 1}</button>`;
                 }
 
-                const statusText = unanswered ? '未作答' : a.is_correct ? '正确' : '错误';
                 const statusCls = unanswered ? 'unanswered' : a.is_correct ? 'correct' : 'wrong';
 
                 c.innerHTML = `
@@ -1964,7 +1969,7 @@ const App = {
                         <div class="session-info-item"><div class="session-info-label">练习时间</div><div class="session-info-value tnum">${esc(data.session.submitted_at)}</div></div>
                         <div class="session-info-item"><div class="session-info-label">题库</div><div class="session-info-value">${esc(data.session.bank_name)}</div></div>
                         <div class="session-info-item"><div class="session-info-label">正确率</div><div class="session-info-value tnum">${this.accuracyText(data.session.correct_count, data.session.total_count)}</div></div>
-                        <div class="session-info-item"><div class="session-info-label">正确/错误/未答</div><div class="session-info-value tnum">${data.session.correct_count} / ${data.session.wrong_count} / ${data.session.unanswered_count || 0}</div></div>
+                        <div class="session-info-item"><div class="session-info-label">正确 / 错误 / 其中未答</div><div class="session-info-value tnum">${data.session.correct_count} / ${data.session.wrong_count} / ${data.session.unanswered_count || 0}</div></div>
                     </div>
                     <div class="practice-layout">
                         <div class="practice-main">
@@ -2013,7 +2018,7 @@ const App = {
                             <div class="sidebar-stats">
                                 <span class="text-success">正确: <b class="tnum">${data.session.correct_count}</b></span>
                                 <span class="text-danger">错误: <b class="tnum">${data.session.wrong_count}</b></span>
-                                <span class="text-secondary">未答: <b class="tnum">${data.session.unanswered_count || 0}</b></span>
+                                <span class="text-secondary">其中未答: <b class="tnum">${data.session.unanswered_count || 0}</b></span>
                             </div>
                         </div>
                     </div>

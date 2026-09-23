@@ -371,7 +371,7 @@ describe('练习记录', () => {
         expect(multi.correct_answer).toEqual([0, 2]);
     });
 
-    it('未作答的详情里 is_correct 为 null 且 selected_answer 为 null', async () => {
+    it('未作答的详情里 selected_answer 为 null，is_correct 记 0（未答算答错）', async () => {
         const { cookie } = await loginAs('u1', 'pass1234');
         const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
 
@@ -382,7 +382,10 @@ describe('练习记录', () => {
         );
 
         const detail = await get(`/api/sessions/${submit.data.session_id}`, cookie);
-        expect(detail.data.answers[0].is_correct).toBeNull();
+        // 未作答按答错处理，所以记 0 而不是 null；
+        // 「这题当时没答」这个事实由 selected_answer 为 null 保留，
+        // 详情页据此仍然显示「未作答」。
+        expect(detail.data.answers[0].is_correct).toBe(0);
         expect(detail.data.answers[0].selected_answer).toBeNull();
     });
 

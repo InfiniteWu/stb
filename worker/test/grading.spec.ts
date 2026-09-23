@@ -85,7 +85,7 @@ describe('判分', () => {
         expect(res.data.correct_count).toBe(0);
     });
 
-    it('未作答计「未答」而非「答错」（旧实现 unanswered_count 恒为 0）', async () => {
+    it('未作答按答错处理：计入错误，同时仍单列「其中未答」', async () => {
         const { cookie } = await loginAs('u1', 'pass1234');
         const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
 
@@ -103,11 +103,15 @@ describe('判分', () => {
         );
 
         expect(res.data.correct_count).toBe(1);
-        expect(res.data.wrong_count).toBe(0);
+        // 未作答计入错误（未答算答错）
+        expect(res.data.wrong_count).toBe(2);
+        // 仍单列，界面上显示为「其中未答」—— 它是错误的子集
         expect(res.data.unanswered_count).toBe(2);
+        // 未答不再另立一类，所以正确 + 错误 = 总题数
+        expect(res.data.correct_count + res.data.wrong_count).toBe(res.data.total_count);
     });
 
-    it('未作答的题不会进入错题本', async () => {
+    it('未作答的题也会进入错题本（未答算答错）', async () => {
         const { cookie } = await loginAs('u1', 'pass1234');
         const { questionIds } = await createBankWithQuestions(SAMPLE_QUESTIONS);
 
@@ -124,7 +128,10 @@ describe('判分', () => {
         );
 
         const wb = await get('/api/wrongbook', cookie);
-        expect(wb.data).toHaveLength(0);
+        expect(wb.data).toHaveLength(2);
+        expect(wb.data.map((r: any) => r.question_id).sort()).toEqual(
+            [questionIds[0]!, questionIds[2]!].sort(),
+        );
     });
 
     it('抽题响应不包含答案与解析（旧实现随题下发）', async () => {

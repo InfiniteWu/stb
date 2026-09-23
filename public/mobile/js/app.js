@@ -903,7 +903,10 @@ const App = {
         let navHtml = '';
         for (let i = 0; i < total; i++) {
             const a = answers[i];
-            const unanswered = a.is_correct === null;
+            // 未作答：旧数据 is_correct 为 null，新数据为 0（未答算答错）
+            const sel = a.selected_answer;
+            const blank = sel === null || sel === undefined || (Array.isArray(sel) && sel.length === 0);
+            const unanswered = a.is_correct === null || blank;
             let state = '未作答';
             let cls = 'm-sheet-btn';
             if (unanswered) {
@@ -1098,7 +1101,11 @@ const App = {
         // 有未作答时先确认：误点一次就会结束本次练习。
         // 未作答按服务端口径判定，与结果页的「未答」数一致。
         const unanswered = payload.filter((p) => isUnansweredSelection(p.selected)).length;
-        if (unanswered > 0 && !confirm(`还有 ${unanswered} 道题未作答，确定交卷吗？`)) return;
+        if (
+            unanswered > 0 &&
+            !confirm(`还有 ${unanswered} 道题未作答，交卷后将按答错计入错题本，确定交卷吗？`)
+        )
+            return;
 
         try {
             this.practiceResult = await API.submitPractice({
@@ -1146,7 +1153,7 @@ const App = {
                     <div class="m-result-stat"><div class="m-result-stat-value tnum">${r.total_count}</div><div class="m-result-stat-label">总题</div></div>
                     <div class="m-result-stat"><div class="m-result-stat-value correct tnum">${r.correct_count}</div><div class="m-result-stat-label">正确</div></div>
                     <div class="m-result-stat"><div class="m-result-stat-value wrong tnum">${r.wrong_count}</div><div class="m-result-stat-label">错误</div></div>
-                    <div class="m-result-stat"><div class="m-result-stat-value unanswered tnum">${r.unanswered_count}</div><div class="m-result-stat-label">未答</div></div>
+                    <div class="m-result-stat"><div class="m-result-stat-value unanswered tnum">${r.unanswered_count}</div><div class="m-result-stat-label">其中未答</div></div>
                 </div>
             </div>
             <div class="m-result-actions">
@@ -1299,7 +1306,7 @@ const App = {
                     <div class="m-session-stats">
                         <span class="correct tnum">正确 ${s.correct_count}</span>
                         <span class="wrong tnum">错误 ${s.wrong_count}</span>
-                        <span class="m-text-muted tnum">未答 ${s.unanswered_count || 0}</span>
+                        <span class="m-text-muted tnum">其中未答 ${s.unanswered_count || 0}</span>
                         <span class="m-text-muted tnum">${this.accuracyText(s.correct_count, s.total_count)}</span>
                     </div>
                 </div>`
@@ -1412,8 +1419,8 @@ const App = {
                 const a = answers[idx];
                 const correctIdxs = toIndexArray(a.correct_answer);
                 const selectedIdxs = toIndexArray(a.selected_answer);
-                const unanswered = a.is_correct === null && selectedIdxs.length === 0;
-                const statusText = unanswered ? '未作答' : a.is_correct ? '正确' : '错误';
+                // 未作答：旧数据记 is_correct = null，新数据记 0（未答算答错）
+                const unanswered = a.is_correct === null || selectedIdxs.length === 0;
                 const statusCls = unanswered ? 'unanswered' : a.is_correct ? 'correct' : 'wrong';
 
                 page.innerHTML = `

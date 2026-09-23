@@ -291,15 +291,20 @@ practiceRoutes.post('/submit', csrfGuard, requireLogin, async (c) => {
     const answered = !isUnanswered(selected);
     const isCorrect = gradeAnswer(q.type, correct, selected);
 
+    // 未作答按答错处理：计入 wrong_count，并进入错题本。
+    // unansweredCount 仍单独统计 —— 它现在是「错误」的子集（其中几道是没答的），
+    // 所以「正确 + 错误 = 总题数」依然成立，界面把它显示为「其中未答」。
     if (!answered) unansweredCount++;
-    else if (isCorrect) correctCount++;
+    if (answered && isCorrect) correctCount++;
     else wrongCount++;
 
     graded.push({
       questionId: q.id,
       selectedJson: serializeSelected(selected),
       correctJson: JSON.stringify(correct),
-      isCorrect: answered ? (isCorrect ? 1 : 0) : null,
+      // 未作答也记 0（旧实现记 null）。历史数据里的 null 仍按「未作答」读，
+      // 详情页因此改为依据 selected_answer 是否为空来判断，不再依赖 is_correct。
+      isCorrect: answered && isCorrect ? 1 : 0,
       answered,
       bankId: q.bank_id,
     });
@@ -345,8 +350,9 @@ practiceRoutes.post('/submit', csrfGuard, requireLogin, async (c) => {
   );
 
   // ── 错题本维护 ──
-  const wrongQuestionIds = graded.filter((g) => g.answered && g.isCorrect === 0).map((g) => g.questionId);
-  const correctQuestionIds = graded.filter((g) => g.answered && g.isCorrect === 1).map((g) => g.questionId);
+  // isCorrect 现在只有 0 / 1 两种取值（未作答记 0），所以未作答会一并进错题本
+  const wrongQuestionIds = graded.filter((g) => g.isCorrect === 0).map((g) => g.questionId);
+  const correctQuestionIds = graded.filter((g) => g.isCorrect === 1).map((g) => g.questionId);
 
   const bankOf = new Map(graded.map((g) => [g.questionId, g.bankId]));
 

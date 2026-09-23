@@ -184,8 +184,10 @@ answers2[0] = { question_id: q2[0].id, selected: details[q2[0].id].answer };
 answers2[3] = { question_id: q2[3].id, selected: details[q2[3].id].answer === 0 ? 1 : 0 };
 
 const submit2 = await req('POST', '/api/practice/submit', { mode: 'random', answers: answers2 });
-check('未作答计未答而非答错', submit2.data?.unanswered_count === 2, JSON.stringify(submit2.data));
-check('答错计 1 题', submit2.data?.wrong_count === 1, JSON.stringify(submit2.data));
+check('未作答仍单列为「其中未答」', submit2.data?.unanswered_count === 2, JSON.stringify(submit2.data));
+check('未作答计入错误（未答算答错）', submit2.data?.wrong_count === 3, JSON.stringify(submit2.data));
+check('正确 + 错误 = 总题数', submit2.data?.correct_count + submit2.data?.wrong_count === submit2.data?.total_count,
+  JSON.stringify(submit2.data));
 check('答对计 1 题', submit2.data?.correct_count === 1, JSON.stringify(submit2.data));
 
 // ── 错题本：移出后可重新进入（旧实现永远加不回来）──
