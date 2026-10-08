@@ -195,6 +195,19 @@ const API = {
         return this.post('/practice/submit', data);
     },
 
+    /**
+     * 答题状态。
+     * 不传 bankId 查全库汇总 { banks: [{ bank_id, answered }] }；
+     * 传 bankId 查单库明细 { bank_id, total, answered, unanswered, by_type }。
+     */
+    getPracticeState(bankId) {
+        return this.get('/practice/state' + (bankId ? this.qs({ bank_id: bankId }) : ''));
+    },
+    /** 清空某库的答题状态 */
+    clearPracticeState(bankId) {
+        return this.post('/practice/state/clear', { bank_id: bankId });
+    },
+
     // ── 练习记录 ────────────────────────────────────────────
     getSessions(params) {
         return this.get('/sessions' + this.qs(params));

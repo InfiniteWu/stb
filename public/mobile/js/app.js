@@ -549,7 +549,11 @@ const App = {
         titleEl.textContent = '选择题库';
         page.innerHTML = '<div class="m-loading"><div class="m-spinner"></div>加载中...</div>';
         try {
-            const banks = await API.getBanks();
+            const [banks, practiceState] = await Promise.all([API.getBanks(), API.getPracticeState()]);
+            const answeredByBank = {};
+            (practiceState.banks || []).forEach((s) => {
+                answeredByBank[s.bank_id] = s.answered;
+            });
 
             if (banks.length === 0) {
                 page.innerHTML = '<div class="m-empty"><p>暂无题库</p></div>';
@@ -563,7 +567,7 @@ const App = {
                     <div class="m-card-body">
                         <div class="m-flex-between m-mb-12">
                             <div class="m-fw-600 m-bank-name">${esc(b.name)}</div>
-                            <div class="m-text-sm m-text-muted tnum">${b.question_count} 题</div>
+                            <div class="m-text-sm m-text-muted tnum" id="remaining-${b.id}">共 ${b.question_count} 题，剩余 ${Math.max(0, b.question_count - (answeredByBank[b.id] || 0))} 题未答</div>
                         </div>
                         <div class="m-flex m-gap-8 m-wrap">
                             <span class="m-badge">单选 ${b.single_count}</span>
@@ -573,7 +577,7 @@ const App = {
                         <div class="m-mt-12">
                             <div class="m-config-row m-hidden" id="config-${b.id}">
                                 <div class="m-config-item">
-                                    <div class="m-config-label">单选</div>
+                                    <div class="m-config-label">单选<div class="m-text-sm m-text-muted tnum" id="hint-single-${b.id}">共 ${b.single_count} 题</div></div>
                                     <div class="m-counter">
                                         <button class="m-counter-btn" data-bank="${b.id}" data-type="single" data-action="dec">−</button>
                                         <span class="m-counter-value tnum" id="sv-${b.id}">10</span>
@@ -581,7 +585,7 @@ const App = {
                                     </div>
                                 </div>
                                 <div class="m-config-item">
-                                    <div class="m-config-label">多选</div>
+                                    <div class="m-config-label">多选<div class="m-text-sm m-text-muted tnum" id="hint-multiple-${b.id}">共 ${b.multiple_count} 题</div></div>
                                     <div class="m-counter">
                                         <button class="m-counter-btn" data-bank="${b.id}" data-type="multiple" data-action="dec">−</button>
                                         <span class="m-counter-value tnum" id="mv-${b.id}">0</span>
@@ -589,17 +593,21 @@ const App = {
                                     </div>
                                 </div>
                                 <div class="m-config-item">
-                                    <div class="m-config-label">判断</div>
+                                    <div class="m-config-label">判断<div class="m-text-sm m-text-muted tnum" id="hint-truefalse-${b.id}">共 ${b.truefalse_count} 题</div></div>
                                     <div class="m-counter">
                                         <button class="m-counter-btn" data-bank="${b.id}" data-type="truefalse" data-action="dec">−</button>
                                         <span class="m-counter-value tnum" id="tv-${b.id}">0</span>
                                         <button class="m-counter-btn" data-bank="${b.id}" data-type="truefalse" data-action="inc">+</button>
                                     </div>
                                 </div>
+                                <div class="m-mt-8">
+                                    <label class="m-text-sm"><input type="checkbox" class="only-unanswered" data-id="${b.id}"> 仅未答</label>
+                                </div>
                             </div>
                             <div class="m-flex m-gap-8 m-hidden" id="actions-${b.id}">
                                 <button class="m-btn m-btn-primary m-btn-sm start-practice" id="start-${b.id}" data-id="${b.id}">开始练习</button>
                                 <button class="m-btn m-btn-secondary m-btn-sm recite-bank" id="recite-${b.id}" data-id="${b.id}">背题模式</button>
+                                <button class="m-btn m-btn-ghost m-btn-sm clear-state" id="clear-${b.id}" data-id="${b.id}">清空记录</button>
                             </div>
                         </div>
                     </div>
@@ -609,19 +617,76 @@ const App = {
 
             const state = {};
             const caps = {};
+            // 各库未答明细（展开卡片时懒加载）：{ single, multiple, truefalse, total }
+            const unanswered = {};
+            const onlyUn = {};
+            const bankById = {};
             banks.forEach((b) => {
+                bankById[b.id] = b;
                 state[b.id] = { single: Math.min(10, b.single_count), multiple: 0, truefalse: 0 };
                 caps[b.id] = { single: b.single_count, multiple: b.multiple_count, truefalse: b.truefalse_count };
+                onlyUn[b.id] = false;
                 const el = document.getElementById('sv-' + b.id);
                 if (el) el.textContent = state[b.id].single;
             });
+
+            // 有效上限：勾选「仅未答」且明细已载入时按未答数，否则按题库总数
+            const effectiveCap = (id, type) =>
+                onlyUn[id] && unanswered[id] ? unanswered[id][type] : caps[id][type];
+            const clampState = (id) => {
+                ['single', 'multiple', 'truefalse'].forEach((t) => {
+                    const cap = effectiveCap(id, t);
+                    if (state[id][t] > cap) {
+                        state[id][t] = cap;
+                        document.getElementById(t[0] + 'v-' + id).textContent = cap;
+                    }
+                });
+            };
+            // 刷新某库的「共 n 题，剩余 m 题未答」提示（含卡片头）
+            const paintHints = (id) => {
+                const b = bankById[id];
+                const u = unanswered[id];
+                const fmt = (total, rem) => `共 ${total} 题，剩余 ${rem} 题未答`;
+                if (u) {
+                    document.getElementById('hint-single-' + id).textContent = fmt(
+                        b.single_count,
+                        u.single
+                    );
+                    document.getElementById('hint-multiple-' + id).textContent = fmt(
+                        b.multiple_count,
+                        u.multiple
+                    );
+                    document.getElementById('hint-truefalse-' + id).textContent = fmt(
+                        b.truefalse_count,
+                        u.truefalse
+                    );
+                    document.getElementById('remaining-' + id).textContent = fmt(
+                        b.question_count,
+                        u.total
+                    );
+                }
+            };
+            const loadUnanswered = async (id) => {
+                if (unanswered[id]) return unanswered[id];
+                const st = await API.getPracticeState(id);
+                unanswered[id] = {
+                    single: st.by_type.single.unanswered,
+                    multiple: st.by_type.multiple.unanswered,
+                    truefalse: st.by_type.truefalse.unanswered,
+                    total: st.unanswered,
+                };
+                paintHints(id);
+                return unanswered[id];
+            };
 
             page.querySelectorAll('.m-card[data-id]').forEach((card) => {
                 card.addEventListener('click', (e) => {
                     if (
                         e.target.closest('.m-counter-btn') ||
                         e.target.closest('.start-practice') ||
-                        e.target.closest('.recite-bank')
+                        e.target.closest('.recite-bank') ||
+                        e.target.closest('.clear-state') ||
+                        e.target.closest('.only-unanswered')
                     )
                         return;
                     const id = card.dataset.id;
@@ -633,6 +698,12 @@ const App = {
                     const isOpen = !cfg.classList.contains('m-hidden');
                     cfg.classList.toggle('m-hidden', isOpen);
                     actions.classList.toggle('m-hidden', isOpen);
+                    // 首次展开时拉取未答明细，刷新提示并按「仅未答」上限压住计数
+                    if (!isOpen) {
+                        loadUnanswered(id)
+                            .then(() => clampState(id))
+                            .catch(() => {});
+                    }
                 });
             });
 
@@ -641,10 +712,46 @@ const App = {
                     const id = btn.dataset.bank;
                     const type = btn.dataset.type;
                     const inc = btn.dataset.action === 'inc';
-                    const cap = caps[id][type];
-                    // 允许为 0，但不允许超过该题库该题型的实际题量
+                    const cap = effectiveCap(id, type);
+                    // 允许为 0，但不允许超过上限（仅未答模式下按未答数）
                     state[id][type] = Math.min(Math.max(0, state[id][type] + (inc ? 1 : -1)), cap);
                     document.getElementById(type[0] + 'v-' + id).textContent = state[id][type];
+                });
+            });
+
+            // 「仅未答」开关：打开时先拉明细，计数器上限切到未答数
+            page.querySelectorAll('.only-unanswered').forEach((box) => {
+                box.addEventListener('change', async () => {
+                    const id = box.dataset.id;
+                    onlyUn[id] = box.checked;
+                    if (box.checked) {
+                        try {
+                            await loadUnanswered(id);
+                        } catch (err) {
+                            alert(err.message);
+                            box.checked = false;
+                            onlyUn[id] = false;
+                            return;
+                        }
+                    }
+                    clampState(id);
+                });
+            });
+
+            // 清空本库答题状态：只删状态行，不动练习记录与错题本
+            page.querySelectorAll('.clear-state').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.id;
+                    if (!confirm('确定清空本库的答题状态吗？清空后「剩余未答」将回到全库题数。'))
+                        return;
+                    try {
+                        await API.clearPracticeState(id);
+                        delete unanswered[id];
+                        await loadUnanswered(id);
+                        clampState(id);
+                    } catch (err) {
+                        alert(err.message);
+                    }
                 });
             });
 
@@ -657,9 +764,27 @@ const App = {
                         alert('请至少选择一道题');
                         return;
                     }
-                    if (total > 100) {
-                        alert('单次最多练习 100 道题');
-                        return;
+                    const only = !!onlyUn[id];
+                    // 仅未答模式下，抽题数不能超过未答总数
+                    if (only) {
+                        let u;
+                        try {
+                            u = await loadUnanswered(id);
+                        } catch (err) {
+                            alert(err.message);
+                            return;
+                        }
+                        if (total > u.total) {
+                            alert(`未答题目共 ${u.total} 道，当前选择了 ${total} 道，请减少数量`);
+                            return;
+                        }
+                        const labels = { single: '单选', multiple: '多选', truefalse: '判断' };
+                        for (const t of Object.keys(labels)) {
+                            if (s[t] > u[t]) {
+                                alert(`${labels[t]}未答只有 ${u[t]} 道，当前选择了 ${s[t]} 道`);
+                                return;
+                            }
+                        }
                     }
                     try {
                         this.practiceData = await API.pickQuestions({
@@ -667,6 +792,7 @@ const App = {
                             single_count: s.single,
                             multiple_count: s.multiple,
                             truefalse_count: s.truefalse,
+                            only_unanswered: only,
                             mode: 'random',
                         });
                         window.location.hash = '#/practice/do';

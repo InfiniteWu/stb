@@ -977,20 +977,28 @@ const App = {
 
         if (!bankId) {
             try {
-                const banks = await API.getBanks();
+                const [banks, state] = await Promise.all([API.getBanks(), API.getPracticeState()]);
+                const answeredByBank = {};
+                (state.banks || []).forEach((s) => {
+                    answeredByBank[s.bank_id] = s.answered;
+                });
                 c.innerHTML = `
                     ${this.banner({ icon: 'target', title: '选择题库', subtitle: '选择要练习的题库' })}
                     ${
                         banks.length === 0
                             ? `<div class="empty-state">${Icons.inbox}<p>暂无题库</p></div>`
                             : `<div class="bank-grid">${banks
-                                  .map(
-                                      (bank) => `
+                                  .map((bank) => {
+                                      const remaining = Math.max(
+                                          0,
+                                          bank.question_count - (answeredByBank[bank.id] || 0)
+                                      );
+                                      return `
                         <div class="bank-card" data-bank-id="${bank.id}">
                             <div class="bank-card-title">${esc(bank.name)}</div>
-                            <div class="bank-card-desc">共 ${bank.question_count} 题</div>
-                        </div>`
-                                  )
+                            <div class="bank-card-desc">共 ${bank.question_count} 题，剩余 ${remaining} 题未答</div>
+                        </div>`;
+                                  })
                                   .join('')}</div>`
                     }
                 `;
@@ -1006,7 +1014,18 @@ const App = {
         }
 
         try {
-            const bank = await API.getBank(bankId);
+            const self = this;
+            const [bank, state] = await Promise.all([
+                API.getBank(bankId),
+                API.getPracticeState(bankId),
+            ]);
+            // 各题型未答数（后端已按 total - answered 推导并钳住下限）
+            const un = {
+                single: state.by_type.single.unanswered,
+                multiple: state.by_type.multiple.unanswered,
+                truefalse: state.by_type.truefalse.unanswered,
+                total: state.unanswered,
+            };
             c.innerHTML = `
                 ${this.banner({ icon: 'target', title: '练习设置', subtitle: bank.name })}
                 <div class="card"><div class="card-body">
@@ -1015,25 +1034,27 @@ const App = {
                             <div class="form-group">
                                 <label for="p-single">单选题数量</label>
                                 <input type="number" id="p-single" name="single_count" value="0" min="0" max="${bank.single_count}" class="form-input">
-                                <span class="hint">题库共有 ${bank.single_count} 题</span>
+                                <span class="hint" id="hint-single">共 ${bank.single_count} 题，剩余 ${un.single} 题未答</span>
                             </div>
                             <div class="form-group">
                                 <label for="p-multiple">多选题数量</label>
                                 <input type="number" id="p-multiple" name="multiple_count" value="0" min="0" max="${bank.multiple_count}" class="form-input">
-                                <span class="hint">题库共有 ${bank.multiple_count} 题</span>
+                                <span class="hint" id="hint-multiple">共 ${bank.multiple_count} 题，剩余 ${un.multiple} 题未答</span>
                             </div>
                             <div class="form-group">
                                 <label for="p-truefalse">判断题数量</label>
                                 <input type="number" id="p-truefalse" name="truefalse_count" value="0" min="0" max="${bank.truefalse_count}" class="form-input">
-                                <span class="hint">题库共有 ${bank.truefalse_count} 题</span>
+                                <span class="hint" id="hint-truefalse">共 ${bank.truefalse_count} 题，剩余 ${un.truefalse} 题未答</span>
                             </div>
                         </div>
                         <div class="form-group">
                             <label class="checkbox-label"><input type="checkbox" id="p-shuffle"> 打乱选项顺序</label>
+                            <label class="checkbox-label"><input type="checkbox" id="p-only-unanswered"> 仅未答</label>
                         </div>
                         <div class="practice-actions">
                             <button type="submit" class="btn btn-primary btn-lg">开始练习</button>
                             <button type="button" class="btn btn-secondary btn-lg" id="btn-recite">背题模式</button>
+                            <button type="button" class="btn btn-secondary btn-lg" id="btn-clear-state">清空答题状态</button>
                         </div>
                     </form>
                 </div></div>
@@ -1044,6 +1065,35 @@ const App = {
                 window.location.hash = '#/recite?bank_id=' + bankId;
             };
 
+            // 勾选「仅未答」后，输入上限切换为各题型未答数并自动压住超量输入
+            const typeInputs = {
+                single: document.getElementById('p-single'),
+                multiple: document.getElementById('p-multiple'),
+                truefalse: document.getElementById('p-truefalse'),
+            };
+            const onlyBox = document.getElementById('p-only-unanswered');
+            const applyOnlyUnansweredMax = () => {
+                const only = onlyBox.checked;
+                Object.keys(typeInputs).forEach((t) => {
+                    const input = typeInputs[t];
+                    input.max = only ? un[t] : bank[t + '_count'];
+                    const v = parseInt(input.value, 10) || 0;
+                    if (v > parseInt(input.max, 10)) input.value = input.max;
+                });
+            };
+            onlyBox.addEventListener('change', applyOnlyUnansweredMax);
+
+            // 清空本库答题状态：只删状态行，不动练习记录与错题本
+            document.getElementById('btn-clear-state').onclick = async () => {
+                if (!confirm('确定清空本库的答题状态吗？清空后「剩余未答」将回到全库题数。')) return;
+                try {
+                    await API.clearPracticeState(bankId);
+                    self.loadPracticePick();
+                } catch (error) {
+                    alert(error.message);
+                }
+            };
+
             document.getElementById('practice-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const data = {
@@ -1052,6 +1102,7 @@ const App = {
                     multiple_count: parseInt(document.getElementById('p-multiple').value, 10) || 0,
                     truefalse_count: parseInt(document.getElementById('p-truefalse').value, 10) || 0,
                     shuffle_options: document.getElementById('p-shuffle').checked,
+                    only_unanswered: document.getElementById('p-only-unanswered').checked,
                     mode: 'random',
                 };
 
@@ -1060,9 +1111,19 @@ const App = {
                     alert('请至少选择一道题目');
                     return;
                 }
-                if (total > 100) {
-                    alert('单次最多练习 100 道题');
-                    return;
+                // 仅未答模式下，抽题数不能超过未答总数
+                if (data.only_unanswered) {
+                    if (total > un.total) {
+                        alert(`未答题目共 ${un.total} 道，当前选择了 ${total} 道，请减少数量`);
+                        return;
+                    }
+                    const labels = { single: '单选', multiple: '多选', truefalse: '判断' };
+                    for (const t of Object.keys(labels)) {
+                        if (data[t + '_count'] > un[t]) {
+                            alert(`${labels[t]}未答只有 ${un[t]} 道，当前选择了 ${data[t + '_count']} 道`);
+                            return;
+                        }
+                    }
                 }
 
                 try {
